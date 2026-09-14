@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: lingya-agents-sdk-rust
+      - uses: actions/checkout@v5
+        with:
+          repository: lingya-ai/lingya-agents-openapi
+          ref: 7362df0
+          path: lingya-agents-openapi
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: lingya-agents-sdk-rust
+      - run: cargo fmt --all -- --check
+        working-directory: lingya-agents-sdk-rust
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: lingya-agents-sdk-rust
+      - run: cargo test --all-targets
+        working-directory: lingya-agents-sdk-rust
+      - run: cargo package --locked
+        working-directory: lingya-agents-sdk-rust

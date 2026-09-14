@@ -1,0 +1,9 @@
+{
+  "packageName": "lingya-agents-sdk",
+  "packageVersion": "0.1.2",
+  "library": "reqwest",
+  "globalProperties": {
+    "models": "",
+    "modelDocs": ""
+  }
+}
