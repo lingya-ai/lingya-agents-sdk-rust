@@ -23,7 +23,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 serde_repr = "0.1"
 serde_with = { version = "3.8", default-features = false, features = ["base64", "std", "macros"] }
-sha2 = "0.10"
+sha2 = "0.11"
 thiserror = "2"
 url = "2.5"
 
