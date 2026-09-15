@@ -4,11 +4,13 @@
 //!
 //! 本 crate 只适用于可信服务端。OpenAPI secret 不得进入客户端应用、日志或异常。
 
+pub mod bound_api;
 pub mod client;
 pub mod events;
 pub mod models;
 pub mod sse;
 
+pub use bound_api::*;
 pub use client::{
     LingyaAgentsClient, LingyaAgentsUserClient, LingyaError, OpenApiCredentials, QueryParameter,
 };

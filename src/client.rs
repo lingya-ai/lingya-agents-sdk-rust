@@ -16,7 +16,12 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use url::form_urlencoded;
 
+use crate::bound_api::{
+    LingyaChatApi, LingyaConfigurationApi, LingyaConversationsApi, LingyaEventsApi, LingyaFilesApi,
+    LingyaInteractionsApi, LingyaKnowledgeApi, LingyaMessagesApi, LingyaSqlApi, LingyaWorkspaceApi,
+};
 use crate::events::{decode_ai_chat_brief_event, LingyaAiChatBriefEvent};
+use crate::models::{AiChatStreamInput, ChatStreamProbeEvent, ChatStreamProbeInput};
 use crate::sse::SseDecoder;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -168,19 +173,95 @@ impl LingyaAgentsUserClient {
         })
     }
 
+    /// 返回创建聊天和消费实时事件的 channel 绑定接口。
+    pub fn chat(&self) -> LingyaChatApi<'_> {
+        LingyaChatApi::new(self)
+    }
+
+    /// 返回 Agent 与会话配置的 channel 绑定接口。
+    pub fn configuration(&self) -> LingyaConfigurationApi<'_> {
+        LingyaConfigurationApi::new(self)
+    }
+
+    /// 返回会话、状态和分享的 channel 绑定接口。
+    pub fn conversations(&self) -> LingyaConversationsApi<'_> {
+        LingyaConversationsApi::new(self)
+    }
+
+    /// 返回持久化聊天事件的 channel 绑定接口。
+    pub fn events(&self) -> LingyaEventsApi<'_> {
+        LingyaEventsApi::new(self)
+    }
+
+    /// 返回文件与预签名地址的 channel 绑定接口。
+    pub fn files(&self) -> LingyaFilesApi<'_> {
+        LingyaFilesApi::new(self)
+    }
+
+    /// 返回计划审批与用户回答的 channel 绑定接口。
+    pub fn interactions(&self) -> LingyaInteractionsApi<'_> {
+        LingyaInteractionsApi::new(self)
+    }
+
+    /// 返回知识引用元数据的 channel 绑定接口。
+    pub fn knowledge(&self) -> LingyaKnowledgeApi<'_> {
+        LingyaKnowledgeApi::new(self)
+    }
+
+    /// 返回消息与异步任务的 channel 绑定接口。
+    pub fn messages(&self) -> LingyaMessagesApi<'_> {
+        LingyaMessagesApi::new(self)
+    }
+
+    /// 返回 SQL 查询与导出的 channel 绑定接口。
+    pub fn sql(&self) -> LingyaSqlApi<'_> {
+        LingyaSqlApi::new(self)
+    }
+
+    /// 返回会话工作区制品的 channel 绑定接口。
+    pub fn workspace(&self) -> LingyaWorkspaceApi<'_> {
+        LingyaWorkspaceApi::new(self)
+    }
+
+    /// 返回兼容期的底层客户端。
+    #[deprecated(note = "use channel-bound groups; this method will be removed in 1.0")]
+    pub fn low_level(&self) -> &Self {
+        self
+    }
+
+    pub(crate) async fn request_model_internal<T: DeserializeOwned>(
+        &self,
+        method: Method,
+        suffix: &str,
+        body: Option<String>,
+        query: &[QueryParameter],
+    ) -> Result<T, LingyaError> {
+        let response = self
+            .raw_response_internal(
+                method,
+                suffix,
+                body.as_deref(),
+                query,
+                "application/json",
+                None,
+            )
+            .await?;
+        Ok(response.json().await?)
+    }
+
     /// 调用 GET JSON 接口并反序列化为明确响应类型。
+    #[deprecated(note = "use the matching channel-bound group; this method will be removed in 1.0")]
     pub async fn get_model<T: DeserializeOwned>(
         &self,
         suffix: &str,
         query: &[QueryParameter],
     ) -> Result<T, LingyaError> {
-        let response = self
-            .raw_response(Method::GET, suffix, None, query, "application/json")
-            .await?;
-        Ok(response.json().await?)
+        self.request_model_internal(Method::GET, suffix, None, query)
+            .await
     }
 
     /// 调用带 JSON 请求体的接口并反序列化为明确响应类型。
+    #[deprecated(note = "use the matching channel-bound group; this method will be removed in 1.0")]
     pub async fn send_model<T: DeserializeOwned, B: Serialize + ?Sized>(
         &self,
         method: Method,
@@ -188,37 +269,63 @@ impl LingyaAgentsUserClient {
         body: &B,
         query: &[QueryParameter],
     ) -> Result<T, LingyaError> {
-        let body = serde_json::to_string(body)?;
-        let response = self
-            .raw_response(method, suffix, Some(&body), query, "application/json")
-            .await?;
-        Ok(response.json().await?)
+        self.request_model_internal(method, suffix, Some(serde_json::to_string(body)?), query)
+            .await
     }
 
-    /// 下载完整二进制响应。
-    pub async fn request_bytes(
+    pub(crate) async fn request_status_internal(
+        &self,
+        method: Method,
+        suffix: &str,
+        body: Option<String>,
+        query: &[QueryParameter],
+    ) -> Result<(), LingyaError> {
+        self.raw_response_internal(
+            method,
+            suffix,
+            body.as_deref(),
+            query,
+            "application/json",
+            None,
+        )
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn request_bytes_internal(
         &self,
         suffix: &str,
         query: &[QueryParameter],
         accept: &str,
     ) -> Result<Vec<u8>, LingyaError> {
         let response = self
-            .raw_response(Method::GET, suffix, None, query, accept)
+            .raw_response_internal(Method::GET, suffix, None, query, accept, None)
             .await?;
         Ok(response.bytes().await?.to_vec())
     }
 
-    /// 发送受控底层请求。请求体必须是最终签名所用的 UTF-8 JSON 字节。
-    pub async fn raw_response(
+    /// 下载完整二进制响应。
+    #[deprecated(note = "use the matching channel-bound group; this method will be removed in 1.0")]
+    pub async fn request_bytes(
+        &self,
+        suffix: &str,
+        query: &[QueryParameter],
+        accept: &str,
+    ) -> Result<Vec<u8>, LingyaError> {
+        self.request_bytes_internal(suffix, query, accept).await
+    }
+
+    pub(crate) async fn raw_response_internal(
         &self,
         method: Method,
         suffix: &str,
         body: Option<&str>,
         query: &[QueryParameter],
         accept: &str,
+        request_id: Option<&str>,
     ) -> Result<Response, LingyaError> {
         let method_name = method.as_str().to_owned();
-        let request = self.signed_request(method, suffix, body, query, accept)?;
+        let request = self.signed_request(method, suffix, body, query, accept, request_id)?;
         let response = self.http.execute(request).await?;
         if response.status().is_success() {
             return Ok(response);
@@ -238,27 +345,44 @@ impl LingyaAgentsUserClient {
         })
     }
 
-    /// 订阅会话 SSE，逐项返回 15 种强类型事件或未知 raw JSON fallback。
-    pub async fn stream_chat_events(
+    /// 发送受控底层请求。请求体必须是最终签名所用的 UTF-8 JSON 字节。
+    #[deprecated(
+        note = "use low_level or a channel-bound group; this method will be removed in 1.0"
+    )]
+    pub async fn raw_response(
+        &self,
+        method: Method,
+        suffix: &str,
+        body: Option<&str>,
+        query: &[QueryParameter],
+        accept: &str,
+    ) -> Result<Response, LingyaError> {
+        self.raw_response_internal(method, suffix, body, query, accept, None)
+            .await
+    }
+
+    pub(crate) async fn stream_chat_events_internal(
         &self,
         conversation_id: &str,
-        message_id: &str,
+        input: &AiChatStreamInput,
+        request_id: Option<&str>,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<LingyaAiChatBriefEvent, LingyaError>> + Send>>,
         LingyaError,
     > {
-        #[derive(Serialize)]
-        struct StreamInput<'a> {
-            #[serde(rename = "messageId")]
-            message_id: &'a str,
-        }
-
         let conversation =
             form_urlencoded::byte_serialize(conversation_id.as_bytes()).collect::<String>();
         let suffix = format!("/conversations/{conversation}/stream");
-        let body = serde_json::to_string(&StreamInput { message_id })?;
+        let body = serde_json::to_string(input)?;
         let response = self
-            .raw_response(Method::POST, &suffix, Some(&body), &[], "text/event-stream")
+            .raw_response_internal(
+                Method::POST,
+                &suffix,
+                Some(&body),
+                &[],
+                "text/event-stream",
+                request_id,
+            )
             .await?;
         let mut chunks = response.bytes_stream();
         let stream = try_stream! {
@@ -275,6 +399,58 @@ impl LingyaAgentsUserClient {
         Ok(Box::pin(stream))
     }
 
+    /// 订阅会话 SSE，逐项返回 15 种强类型事件或未知 raw JSON fallback。
+    #[deprecated(note = "use chat().stream_chat_events(conversation_id, input, options)")]
+    pub async fn stream_chat_events(
+        &self,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<LingyaAiChatBriefEvent, LingyaError>> + Send>>,
+        LingyaError,
+    > {
+        self.stream_chat_events_internal(
+            conversation_id,
+            &AiChatStreamInput::new(message_id.to_owned()),
+            None,
+        )
+        .await
+    }
+
+    pub(crate) async fn probe_event_stream_internal(
+        &self,
+        input: &ChatStreamProbeInput,
+        request_id: Option<&str>,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<ChatStreamProbeEvent, LingyaError>> + Send>>,
+        LingyaError,
+    > {
+        let body = serde_json::to_string(input)?;
+        let response = self
+            .raw_response_internal(
+                Method::POST,
+                "/stream-probe",
+                Some(&body),
+                &[],
+                "text/event-stream",
+                request_id,
+            )
+            .await?;
+        let mut chunks = response.bytes_stream();
+        let stream = try_stream! {
+            let mut decoder = SseDecoder::default();
+            while let Some(chunk) = chunks.next().await {
+                for data in decoder.push(&chunk?)? {
+                    yield serde_json::from_str::<ChatStreamProbeEvent>(&data)?;
+                }
+            }
+            for data in decoder.finish()? {
+                yield serde_json::from_str::<ChatStreamProbeEvent>(&data)?;
+            }
+        };
+        Ok(Box::pin(stream))
+    }
+
     fn signed_request(
         &self,
         method: Method,
@@ -282,6 +458,7 @@ impl LingyaAgentsUserClient {
         body: Option<&str>,
         query: &[QueryParameter],
         accept: &str,
+        request_id: Option<&str>,
     ) -> Result<reqwest::Request, LingyaError> {
         let body_bytes = body.unwrap_or_default().as_bytes();
         if body_bytes.len() > 2 * 1024 * 1024 {
@@ -349,6 +526,9 @@ impl LingyaAgentsUserClient {
             builder = builder
                 .header("Content-Type", content_type)
                 .body(body_bytes.to_vec());
+        }
+        if let Some(request_id) = request_id {
+            builder = builder.header("X-Request-ID", request_id);
         }
         Ok(builder.build()?)
     }

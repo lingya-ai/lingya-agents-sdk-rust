@@ -4,19 +4,64 @@ use std::fs;
 use std::path::PathBuf;
 
 use futures_util::StreamExt;
+use lingya_agents_sdk::models::generate_pre_signed_url_input::Module;
 use lingya_agents_sdk::models::{
-    AiChatSubmission, ConversationShareCreated, GeneratePreSignedUrlOutput,
+    AiChatEventsBatchInput, AiChatInput, AiChatStreamInput, AiChatSubmission, ChatStreamProbeInput,
+    ConfirmUploadInput, ConversationActivityBatchInput, ConversationReadReceiptInput,
+    ConversationShareInput, ConversationStatusInput, ConversationTitleInput, CreateFileInput,
+    GeneratePreSignedUrlInput, PlanApprovalInput, UserInputAnswerInput,
 };
-use lingya_agents_sdk::sse::SseDecoder;
 use lingya_agents_sdk::{
-    LingyaAgentsClient, LingyaAgentsUserClient, LingyaError, OpenApiCredentials, QueryParameter,
+    CompactConversationOptions, ExportSqlQueryResultOptions, FileExistsByContentMd5Options,
+    GetChatEventsOptions, GetSqlQueryResultOptions, GetUserInputStatusOptions,
+    GetWorkspaceFilePreviewOptions, LingyaAgentsClient, LingyaAgentsUserClient, LingyaError,
+    ListConversationAsyncTasksOptions, ListConversationMessagesOptions, ListConversationsOptions,
+    ListWorkspaceArtifactsOptions, OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat,
+    StreamChatEventsOptions,
 };
 use regex::Regex;
 use reqwest::Method;
-use serde::de::DeserializeOwned;
-use serde_json::json;
 
 const BASE_PATH: &str = "/api/agents/channel/openapi/v1/{channelId}/chat";
+
+macro_rules! success {
+    ($coverage:expr, $method:expr, $suffix:expr, $future:expr) => {{
+        let value = $future.await?;
+        $coverage.record($method, $suffix, 200, "通过")?;
+        value
+    }};
+    ($coverage:expr, $method:expr, $suffix:expr, $status:expr, $future:expr) => {{
+        let value = $future.await?;
+        $coverage.record($method, $suffix, $status, "通过")?;
+        value
+    }};
+}
+
+macro_rules! domain {
+    ($coverage:expr, $method:expr, $suffix:expr, $future:expr) => {{
+        match $future.await {
+            Err(LingyaError::Http { status, .. })
+                if matches!(status.as_u16(), 400 | 403 | 404 | 409 | 422) =>
+            {
+                $coverage.record(
+                    $method,
+                    $suffix,
+                    status.as_u16(),
+                    "环境能力受限，参数与错误响应已验证",
+                )?;
+            }
+            Err(error) => return Err(error.into()),
+            Ok(_) => {
+                return Err(LingyaError::InvalidInput(format!(
+                    "{} {} unexpectedly succeeded",
+                    $method.as_str(),
+                    $suffix
+                ))
+                .into());
+            }
+        }
+    }};
+}
 
 #[tokio::test]
 async fn all_46_real_endpoints() -> Result<(), Box<dyn Error>> {
@@ -24,40 +69,42 @@ async fn all_46_real_endpoints() -> Result<(), Box<dyn Error>> {
         eprintln!("skipped: live environment variables are required");
         return Ok(());
     };
-    let secret_key = required_env("OPENAPI_SK")?;
-    let base_url = required_env("LINGYA_LIVE_BASE_URL")?;
-    let channel_id = required_env("LINGYA_LIVE_CHANNEL_ID")?;
     let client = LingyaAgentsClient::new(
-        base_url,
-        channel_id,
-        OpenApiCredentials::new(access_key, secret_key),
+        required_env("LINGYA_LIVE_BASE_URL")?,
+        required_env("LINGYA_LIVE_CHANNEL_ID")?,
+        OpenApiCredentials::new(access_key, required_env("OPENAPI_SK")?),
     )?;
     let user = client.for_user(
         env("LINGYA_LIVE_EXTERNAL_USER_ID")
             .unwrap_or_else(|| "lingya-rust-sdk-all-endpoints".into()),
     )?;
     let mut coverage = Coverage::new(user);
-    let first: AiChatSubmission = coverage
-        .model(
-            Method::POST,
-            "",
-            Some(json!({"query": "仅回复英文 OK"}).to_string()),
-        )
-        .await?;
+    let first_input = AiChatInput::new("仅回复英文 OK".into());
+    let first: AiChatSubmission = success!(
+        coverage,
+        Method::POST,
+        "",
+        201,
+        coverage.user.chat().create_chat(&first_input)
+    );
 
     let scenario = run_scenario(&mut coverage, &first).await;
-    let cleanup = coverage
-        .success(
-            Method::DELETE,
-            &format!("/conversations/{}", first.conversation_id),
-            None,
-            vec![],
-            "application/json",
-        )
+    let cleanup_result = coverage
+        .user
+        .conversations()
+        .delete_conversation(&first.conversation_id)
         .await;
+    if cleanup_result.is_ok() {
+        coverage.record(
+            Method::DELETE,
+            "/conversations/{conversationId}",
+            200,
+            "通过",
+        )?;
+    }
     coverage.write_report()?;
     scenario?;
-    cleanup?;
+    cleanup_result?;
 
     assert_eq!(coverage.seen.len(), 46);
     assert_eq!(coverage.seen, published_endpoints()?);
@@ -68,407 +115,454 @@ async fn run_scenario(
     coverage: &mut Coverage,
     first: &AiChatSubmission,
 ) -> Result<(), Box<dyn Error>> {
-    coverage
-        .success(Method::GET, "/config", None, vec![], "application/json")
-        .await?;
+    success!(
+        coverage,
+        Method::GET,
+        "/config",
+        coverage.user.configuration().get_agents_config()
+    );
+    let stream_input = AiChatStreamInput::new(first.message_id.clone());
     let mut stream = coverage
         .user
-        .stream_chat_events(&first.conversation_id, &first.message_id)
+        .chat()
+        .stream_chat_events(
+            &first.conversation_id,
+            &stream_input,
+            &StreamChatEventsOptions::default(),
+        )
         .await?;
-    let mut count = 0;
     let mut saw_end = false;
     while let Some(event) = stream.next().await {
-        let event = event?;
-        count += 1;
-        saw_end |= event.event_type() == "end";
+        saw_end |= event?.event_type() == "end";
     }
     drop(stream);
-    assert!(count > 0 && saw_end);
+    assert!(saw_end);
     coverage.record(
         Method::POST,
         "/conversations/{conversationId}/stream",
         200,
         "流式响应完成",
     )?;
-    let conversation = &first.conversation_id;
-    let message = &first.message_id;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/config"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/context-usage"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/conversations",
-            None,
-            query(&[("current", "0"), ("size", "5")]),
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/conversations/active",
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/conversations/unread",
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::POST,
-            "/conversations/activity/query",
-            Some(json!({"conversationIds": [conversation]}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::PUT,
-            &format!("/conversations/{conversation}/read-receipt"),
-            Some(json!({"messageId": message}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/conversations/stats",
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::PATCH,
-            &format!("/conversations/{conversation}/title"),
-            Some(json!({"title": "Rust SDK 全接口测试"}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/title"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/messages"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/messages/{message}"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/events",
-            None,
-            vec![
-                QueryParameter::new("conversationId", conversation),
-                QueryParameter::new("messageId", message),
-            ],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::POST,
-            "/events/batch",
-            Some(json!({"conversationId": conversation, "messageIds": [message]}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    let second: AiChatSubmission = coverage
-        .model(
-            Method::POST,
-            &format!("/conversations/{conversation}"),
-            Some(json!({"query": "再次仅回复英文 OK"}).to_string()),
-        )
-        .await?;
+
+    let conversation = first.conversation_id.as_str();
+    let message = first.message_id.as_str();
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/config",
+        coverage
+            .user
+            .configuration()
+            .get_conversation_config(conversation)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/context-usage",
+        coverage
+            .user
+            .conversations()
+            .get_conversation_context_usage(conversation)
+    );
+    let list_options = ListConversationsOptions {
+        current: Some(0),
+        size: Some(5),
+        ..Default::default()
+    };
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations",
+        coverage
+            .user
+            .conversations()
+            .list_conversations(&list_options)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/active",
+        coverage.user.conversations().list_active_conversations()
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/unread",
+        coverage.user.conversations().list_unread_conversations()
+    );
+    let activity_input = ConversationActivityBatchInput::new(vec![conversation.into()]);
+    success!(
+        coverage,
+        Method::POST,
+        "/conversations/activity/query",
+        coverage
+            .user
+            .conversations()
+            .query_conversation_activities(&activity_input)
+    );
+    let receipt_input = ConversationReadReceiptInput::new(message.into());
+    success!(
+        coverage,
+        Method::PUT,
+        "/conversations/{conversationId}/read-receipt",
+        coverage
+            .user
+            .conversations()
+            .mark_conversation_read(conversation, &receipt_input)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/stats",
+        coverage.user.conversations().get_conversation_stats()
+    );
+    let title_input = ConversationTitleInput::new("Rust SDK 全接口测试".into());
+    success!(
+        coverage,
+        Method::PATCH,
+        "/conversations/{conversationId}/title",
+        coverage
+            .user
+            .conversations()
+            .update_conversation_title(conversation, &title_input)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/title",
+        coverage
+            .user
+            .conversations()
+            .get_conversation_title(conversation)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/messages",
+        coverage
+            .user
+            .messages()
+            .list_conversation_messages(conversation, &ListConversationMessagesOptions::default())
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/messages/{messageId}",
+        coverage
+            .user
+            .messages()
+            .get_conversation_message(conversation, message)
+    );
+    let event_options = GetChatEventsOptions {
+        conversation_id: conversation.into(),
+        message_id: message.into(),
+    };
+    success!(
+        coverage,
+        Method::GET,
+        "/events",
+        coverage.user.events().get_chat_events(&event_options)
+    );
+    let batch_input = AiChatEventsBatchInput::new(conversation.into(), vec![message.into()]);
+    success!(
+        coverage,
+        Method::POST,
+        "/events/batch",
+        coverage.user.events().get_chat_events_batch(&batch_input)
+    );
+
+    let second_input = AiChatInput::new("再次仅回复英文 OK".into());
+    let second: AiChatSubmission = success!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}",
+        201,
+        coverage
+            .user
+            .chat()
+            .continue_chat(conversation, &second_input)
+    );
+    let second_stream_input = AiChatStreamInput::new(second.message_id.clone());
     let mut second_stream = coverage
         .user
-        .stream_chat_events(&second.conversation_id, &second.message_id)
+        .chat()
+        .stream_chat_events(
+            &second.conversation_id,
+            &second_stream_input,
+            &StreamChatEventsOptions::default(),
+        )
         .await?;
     while let Some(event) = second_stream.next().await {
         event?;
     }
     drop(second_stream);
-    coverage
-        .success(
-            Method::DELETE,
-            &format!("/conversations/{conversation}/interrupt"),
-            None,
-            vec![],
-            "application/json",
+    success!(
+        coverage,
+        Method::DELETE,
+        "/conversations/{conversationId}/interrupt",
+        coverage.user.chat().interrupt_conversation(conversation)
+    );
+    success!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}/compact",
+        coverage
+            .user
+            .chat()
+            .compact_conversation(conversation, &CompactConversationOptions::default())
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/async-tasks",
+        coverage.user.messages().list_conversation_async_tasks(
+            conversation,
+            &ListConversationAsyncTasksOptions::default()
         )
-        .await?;
-    coverage
-        .success(
-            Method::POST,
-            &format!("/conversations/{conversation}/compact"),
-            None,
-            vec![],
-            "application/json",
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/async-tasks/{asyncTaskId}",
+        coverage
+            .user
+            .messages()
+            .get_conversation_async_task(conversation, "missing-async-task")
+    );
+    domain!(
+        coverage,
+        Method::DELETE,
+        "/conversations/{conversationId}/messages/{messageId}/queue",
+        coverage
+            .user
+            .messages()
+            .cancel_queued_message(conversation, message)
+    );
+
+    let share_input = ConversationShareInput::new();
+    let share = success!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}/shares",
+        201,
+        coverage
+            .user
+            .conversations()
+            .create_conversation_share(conversation, &share_input)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/shares",
+        coverage
+            .user
+            .conversations()
+            .list_conversation_shares(conversation)
+    );
+    success!(
+        coverage,
+        Method::DELETE,
+        "/conversations/{conversationId}/shares/{shareId}",
+        coverage
+            .user
+            .conversations()
+            .revoke_conversation_share(conversation, share.share_id)
+    );
+
+    let approval = PlanApprovalInput::new(conversation.into(), message.into(), false);
+    success!(
+        coverage,
+        Method::POST,
+        "/plan/approve",
+        coverage.user.interactions().approve_plan(&approval)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/plan/{planId}/status",
+        coverage.user.interactions().get_plan_status("missing-plan")
+    );
+    let user_status = GetUserInputStatusOptions {
+        conversation_id: conversation.into(),
+        message_id: message.into(),
+    };
+    success!(
+        coverage,
+        Method::GET,
+        "/user-input/{questionId}/status",
+        coverage
+            .user
+            .interactions()
+            .get_user_input_status("missing-question", &user_status)
+    );
+    let mut answer = UserInputAnswerInput::new(
+        conversation.into(),
+        message.into(),
+        "missing-question".into(),
+        vec![],
+    );
+    answer.custom_input = Some(Some("not pending".into()));
+    success!(
+        coverage,
+        Method::POST,
+        "/user-input/answer",
+        coverage.user.interactions().answer_user_input(&answer)
+    );
+
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/sql-query-results/{resultId}",
+        coverage.user.sql().get_sql_query_result(
+            conversation,
+            "missing-result",
+            &GetSqlQueryResultOptions::default()
         )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/async-tasks"),
-            None,
-            vec![],
-            "application/json",
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/sql-query-results/{resultId}/chart-data",
+        coverage
+            .user
+            .sql()
+            .get_sql_query_chart_data(conversation, "missing-result")
+    );
+    let export_options = ExportSqlQueryResultOptions {
+        format: SqlExportFormat::Csv,
+        accept: Some("text/csv".into()),
+    };
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/sql-query-results/{resultId}/export",
+        coverage.user.sql().export_sql_query_result(
+            conversation,
+            "missing-result",
+            &export_options
         )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/async-tasks/missing-async-task"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::DELETE,
-            &format!("/conversations/{conversation}/messages/{message}/queue"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    let share: ConversationShareCreated = coverage
-        .model(
-            Method::POST,
-            &format!("/conversations/{conversation}/shares"),
-            Some("{}".into()),
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/shares"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::DELETE,
-            &format!("/conversations/{conversation}/shares/{}", share.share_id),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::POST,
-            "/plan/approve",
-            Some(
-                json!({"conversationId": conversation, "messageId": message, "approved": false})
-                    .to_string(),
-            ),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/plan/missing-plan/status",
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            "/user-input/missing-question/status",
-            None,
-            vec![
-                QueryParameter::new("conversationId", conversation),
-                QueryParameter::new("messageId", message),
-            ],
-            "application/json",
-        )
-        .await?;
-    coverage.success(Method::POST, "/user-input/answer", Some(json!({"conversationId": conversation, "messageId": message, "questionId": "missing-question", "selectedOptions": [], "customInput": "not pending"}).to_string()), vec![], "application/json").await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/sql-query-results/missing-result"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/sql-query-results/missing-result/chart-data"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/sql-query-results/missing-result/export"),
-            None,
-            query(&[("format", "CSV")]),
-            "text/csv",
-        )
-        .await?;
+    );
+
     let md5 = "17/2WOZXDPjhZzwMQCHrDg==";
-    coverage
-        .success(
-            Method::GET,
-            "/files/meta/contentMd5",
-            None,
-            vec![QueryParameter::new("contentMd5", md5)],
-            "application/json",
-        )
-        .await?;
-    let upload: GeneratePreSignedUrlOutput = coverage.model(Method::POST, "/files/pre-signed-url/write", Some(json!({"fileName": "lingya-sdk-endpoint-test.txt", "module": "ai-chat-attachments", "contentMd5": md5}).to_string())).await?;
-    coverage
-        .domain(
-            Method::POST,
-            "/files/pre-signed-url/confirm",
-            Some(json!({"fileUk": upload.file_uk, "contentMd5": md5}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::POST,
-            "/files/contentMd5",
-            Some(
-                json!({"fileName": "lingya-sdk-endpoint-test.txt", "contentMd5": md5}).to_string(),
-            ),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/files/9223372036854775807/preview"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage.domain(Method::GET, &format!("/conversations/{conversation}/messages/{message}/plan-intermediate-files/9223372036854775807/preview"), None, vec![], "application/json").await?;
-    coverage
-        .success(
-            Method::POST,
-            "/knowledge-bases/citations/metadata",
-            Some("[]".into()),
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            "/knowledge-bases/citations/CHUNK/9223372036854775807/metadata",
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .success(
-            Method::GET,
-            &format!("/conversations/{conversation}/workspace/files"),
-            None,
-            vec![],
-            "application/json",
-        )
-        .await?;
-    coverage
-        .domain(
-            Method::GET,
-            &format!("/conversations/{conversation}/workspace/files/preview"),
-            None,
-            query(&[("path", "missing-file.txt")]),
-            "application/json",
-        )
-        .await?;
-    let probe_body = json!({"probeId": format!("all-{}", uuid::Uuid::new_v4())}).to_string();
-    let probe = coverage
+    let exists_options = FileExistsByContentMd5Options {
+        content_md5: md5.into(),
+    };
+    success!(
+        coverage,
+        Method::GET,
+        "/files/meta/contentMd5",
+        coverage
+            .user
+            .files()
+            .file_exists_by_content_md5(&exists_options)
+    );
+    let upload_input = GeneratePreSignedUrlInput::new(
+        "lingya-sdk-endpoint-test.txt".into(),
+        Module::AiChatAttachments,
+        md5.into(),
+    );
+    let upload = success!(
+        coverage,
+        Method::POST,
+        "/files/pre-signed-url/write",
+        coverage
+            .user
+            .files()
+            .create_pre_signed_upload(&upload_input)
+    );
+    let file_uk = upload
+        .file_uk
+        .flatten()
+        .ok_or_else(|| LingyaError::InvalidInput("pre-signed upload omitted fileUk".into()))?;
+    let confirm = ConfirmUploadInput::new(file_uk, md5.into());
+    domain!(
+        coverage,
+        Method::POST,
+        "/files/pre-signed-url/confirm",
+        coverage.user.files().confirm_pre_signed_upload(&confirm)
+    );
+    let create_file = CreateFileInput::new("lingya-sdk-endpoint-test.txt".into(), md5.into());
+    domain!(
+        coverage,
+        Method::POST,
+        "/files/contentMd5",
+        coverage
+            .user
+            .files()
+            .create_file_by_content_md5(&create_file)
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/files/{fileId}/preview",
+        coverage
+            .user
+            .files()
+            .get_conversation_file_preview(conversation, i64::MAX)
+    );
+    domain!(coverage, Method::GET, "/conversations/{conversationId}/messages/{messageId}/plan-intermediate-files/{fileId}/preview", coverage.user.files().get_plan_intermediate_file_preview(conversation, message, i64::MAX));
+
+    success!(
+        coverage,
+        Method::POST,
+        "/knowledge-bases/citations/metadata",
+        coverage.user.knowledge().get_citation_metadata_batch(&[])
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/knowledge-bases/citations/{citationType}/{referenceId}/metadata",
+        coverage
+            .user
+            .knowledge()
+            .get_citation_metadata("CHUNK", i64::MAX)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/workspace/files",
+        coverage
+            .user
+            .workspace()
+            .list_workspace_artifacts(conversation, &ListWorkspaceArtifactsOptions::default())
+    );
+    let preview_options = GetWorkspaceFilePreviewOptions {
+        path: "missing-file.txt".into(),
+    };
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/workspace/files/preview",
+        coverage
+            .user
+            .workspace()
+            .get_workspace_file_preview(conversation, &preview_options)
+    );
+
+    let probe_input = ChatStreamProbeInput::new(format!("all-{}", uuid::Uuid::new_v4()));
+    let mut probe = coverage
         .user
-        .raw_response(
-            Method::POST,
-            "/stream-probe",
-            Some(&probe_body),
-            &[],
-            "text/event-stream",
-        )
+        .chat()
+        .probe_event_stream(&probe_input, &ProbeEventStreamOptions::default())
         .await?;
-    let status = probe.status().as_u16();
-    let mut decoder = SseDecoder::default();
-    let events = decoder.push(&probe.bytes().await?)?;
-    assert_eq!(events.len(), 4);
-    coverage.record(Method::POST, "/stream-probe", status, "流式响应完成")?;
-    coverage
-        .success(
-            Method::PATCH,
-            &format!("/conversations/{conversation}/status"),
-            Some(json!({"status": "ARCHIVED"}).to_string()),
-            vec![],
-            "application/json",
-        )
-        .await?;
+    let mut probe_count = 0;
+    while let Some(event) = probe.next().await {
+        event?;
+        probe_count += 1;
+    }
+    drop(probe);
+    assert_eq!(probe_count, 4);
+    coverage.record(Method::POST, "/stream-probe", 200, "流式响应完成")?;
+    let status_input = ConversationStatusInput::new("ARCHIVED".into());
+    success!(
+        coverage,
+        Method::PATCH,
+        "/conversations/{conversationId}/status",
+        coverage
+            .user
+            .conversations()
+            .update_conversation_status(conversation, &status_input)
+    );
     Ok(())
 }
 
@@ -494,88 +588,19 @@ impl Coverage {
         }
     }
 
-    async fn success(
-        &mut self,
-        method: Method,
-        suffix: &str,
-        body: Option<String>,
-        query: Vec<QueryParameter>,
-        accept: &str,
-    ) -> Result<(), LingyaError> {
-        let response = self
-            .user
-            .raw_response(method.clone(), suffix, body.as_deref(), &query, accept)
-            .await?;
-        self.record(method, suffix, response.status().as_u16(), "通过")
-            .map_err(LingyaError::InvalidInput)
-    }
-
-    async fn model<T: DeserializeOwned>(
-        &mut self,
-        method: Method,
-        suffix: &str,
-        body: Option<String>,
-    ) -> Result<T, LingyaError> {
-        let response = self
-            .user
-            .raw_response(
-                method.clone(),
-                suffix,
-                body.as_deref(),
-                &[],
-                "application/json",
-            )
-            .await?;
-        let status = response.status().as_u16();
-        let bytes = response.bytes().await?;
-        self.record(method, suffix, status, "通过")
-            .map_err(LingyaError::InvalidInput)?;
-        Ok(serde_json::from_slice(&bytes)?)
-    }
-
-    async fn domain(
-        &mut self,
-        method: Method,
-        suffix: &str,
-        body: Option<String>,
-        query: Vec<QueryParameter>,
-        accept: &str,
-    ) -> Result<(), LingyaError> {
-        match self
-            .user
-            .raw_response(method.clone(), suffix, body.as_deref(), &query, accept)
-            .await
-        {
-            Err(LingyaError::Http { status, .. })
-                if matches!(status.as_u16(), 400 | 403 | 404 | 409 | 422) =>
-            {
-                self.record(
-                    method,
-                    suffix,
-                    status.as_u16(),
-                    "环境能力受限，参数与错误响应已验证",
-                )
-                .map_err(LingyaError::InvalidInput)
-            }
-            Err(error) => Err(error),
-            Ok(response) => Err(LingyaError::InvalidInput(format!(
-                "expected domain error but got {}",
-                response.status()
-            ))),
-        }
-    }
-
     fn record(
         &mut self,
         method: Method,
         suffix: &str,
         status: u16,
         outcome: &str,
-    ) -> Result<(), String> {
-        let path = format!("{BASE_PATH}{}", canonical_suffix(suffix));
+    ) -> Result<(), LingyaError> {
+        let path = format!("{BASE_PATH}{suffix}");
         let key = format!("{} {path}", method.as_str());
         if !self.seen.insert(key.clone()) {
-            return Err(format!("duplicate endpoint: {key}"));
+            return Err(LingyaError::InvalidInput(format!(
+                "duplicate endpoint: {key}"
+            )));
         }
         self.results.push(ResultRow {
             method: method.to_string(),
@@ -589,7 +614,7 @@ impl Coverage {
     fn write_report(&self) -> Result<(), std::io::Error> {
         let directory = PathBuf::from("build/reports/live-api");
         fs::create_dir_all(&directory)?;
-        let mut report = String::from("# Rust SDK 真实环境全接口测试报告\n\n| 请求标识 | Method | Path | HTTP | 结果 |\n|---|---|---|---:|---|\n");
+        let mut report = String::from("# Rust SDK 真实环境全接口测试报告\n\n报告不含凭证、请求正文或响应正文。\n\n| 请求标识 | Method | Path | HTTP | 结果 |\n|---|---|---|---:|---|\n");
         for (index, row) in self.results.iter().enumerate() {
             report.push_str(&format!(
                 "| local-{:03} | {} | `{}` | {} | {} |\n",
@@ -602,48 +627,6 @@ impl Coverage {
         }
         fs::write(directory.join("all-endpoints.md"), report)
     }
-}
-
-fn canonical_suffix(suffix: &str) -> String {
-    let mut value = suffix.to_owned();
-    if let Some(rest) = suffix.strip_prefix("/conversations/") {
-        let segment = rest.split('/').next().unwrap_or_default();
-        if !matches!(segment, "active" | "unread" | "stats" | "activity") {
-            value = format!(
-                "/conversations/{{conversationId}}{}",
-                rest.strip_prefix(segment).unwrap_or_default()
-            );
-        }
-    }
-    for (pattern, replacement) in [
-        (r"/async-tasks/[^/]+", "/async-tasks/{asyncTaskId}"),
-        (r"/messages/[^/]+", "/messages/{messageId}"),
-        (
-            r"/plan-intermediate-files/[^/]+",
-            "/plan-intermediate-files/{fileId}",
-        ),
-        (
-            r"^/conversations/\{conversationId\}/files/[^/]+",
-            "/conversations/{conversationId}/files/{fileId}",
-        ),
-        (r"/shares/[^/]+", "/shares/{shareId}"),
-        (r"/sql-query-results/[^/]+", "/sql-query-results/{resultId}"),
-        (r"^/plan/[^/]+/status$", "/plan/{planId}/status"),
-        (
-            r"^/user-input/[^/]+/status$",
-            "/user-input/{questionId}/status",
-        ),
-        (
-            r"^/knowledge-bases/citations/[^/]+/[^/]+/metadata$",
-            "/knowledge-bases/citations/{citationType}/{referenceId}/metadata",
-        ),
-    ] {
-        value = Regex::new(pattern)
-            .unwrap()
-            .replace(&value, replacement)
-            .into_owned();
-    }
-    value
 }
 
 fn published_endpoints() -> Result<BTreeSet<String>, Box<dyn Error>> {
@@ -666,13 +649,6 @@ fn published_endpoints() -> Result<BTreeSet<String>, Box<dyn Error>> {
         }
     }
     Ok(endpoints)
-}
-
-fn query(items: &[(&str, &str)]) -> Vec<QueryParameter> {
-    items
-        .iter()
-        .map(|(name, value)| QueryParameter::new(*name, *value))
-        .collect()
 }
 
 fn env(name: &str) -> Option<String> {

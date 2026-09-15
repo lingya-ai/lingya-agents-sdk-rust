@@ -1,0 +1,1271 @@
+//! Channel-bound API groups generated from the Lingya Agents contract.
+//!
+//! The wire contract keeps `channelId` in every path. These public methods
+//! omit it because [`LingyaAgentsClient`](crate::LingyaAgentsClient) binds it once.
+
+use std::pin::Pin;
+
+use futures_util::Stream;
+use reqwest::Method;
+
+use crate::client::{LingyaAgentsUserClient, LingyaError, QueryParameter};
+use crate::events::LingyaAiChatBriefEvent;
+use crate::models;
+
+/// 可取消的强类型聊天事件流。 / Cancellable strongly typed chat-event stream.
+pub type AiChatEventStream =
+    Pin<Box<dyn Stream<Item = Result<LingyaAiChatBriefEvent, LingyaError>> + Send>>;
+/// 可取消的诊断事件流。 / Cancellable diagnostic event stream.
+pub type ProbeEventStream =
+    Pin<Box<dyn Stream<Item = Result<models::ChatStreamProbeEvent, LingyaError>> + Send>>;
+
+/// 排序方向。 / Sort direction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SortDirection {
+    /// 升序。 / Ascending.
+    Asc,
+    /// 降序。 / Descending.
+    Desc,
+}
+
+impl SortDirection {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Asc => "ASC",
+            Self::Desc => "DESC",
+        }
+    }
+}
+
+/// 空值排序策略。 / Null ordering strategy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NullOrdering {
+    /// 使用数据库默认顺序。 / Use the database-native order.
+    Native,
+    /// 空值优先。 / Nulls first.
+    NullsFirst,
+    /// 空值最后。 / Nulls last.
+    NullsLast,
+}
+
+impl NullOrdering {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Native => "NATIVE",
+            Self::NullsFirst => "NULLS_FIRST",
+            Self::NullsLast => "NULLS_LAST",
+        }
+    }
+}
+
+/// SQL 导出格式。 / SQL export format.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SqlExportFormat {
+    /// CSV 文本。 / CSV text.
+    Csv,
+    /// XLSX 工作簿。 / XLSX workbook.
+    Xlsx,
+}
+
+impl SqlExportFormat {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Csv => "CSV",
+            Self::Xlsx => "XLSX",
+        }
+    }
+}
+
+/// 订阅消息事件流 / Stream message events 的查询参数和请求头。 / Query values and headers for `stream_chat_events`.
+#[derive(Clone, Debug, Default)]
+pub struct StreamChatEventsOptions {
+    /// 可选诊断请求 ID，便于关联客户端与服务端日志。 / Optional diagnostic request ID used to correlate client and server logs.
+    pub request_id: Option<String>,
+}
+
+/// 探测 SSE 连接 / Probe the SSE connection 的查询参数和请求头。 / Query values and headers for `probe_event_stream`.
+#[derive(Clone, Debug, Default)]
+pub struct ProbeEventStreamOptions {
+    /// 可选诊断请求 ID，便于关联客户端与服务端日志。 / Optional diagnostic request ID used to correlate client and server logs.
+    pub request_id: Option<String>,
+}
+
+/// 压缩会话上下文 / Compact conversation context 的查询参数和请求头。 / Query values and headers for `compact_conversation`.
+#[derive(Clone, Debug, Default)]
+pub struct CompactConversationOptions {
+    /// 是否忽略当前阈值并强制压缩。 / Whether to compact regardless of the current threshold.
+    pub force: Option<bool>,
+}
+
+/// 分页查询会话 / List conversations 的查询参数和请求头。 / Query values and headers for `list_conversations`.
+#[derive(Clone, Debug, Default)]
+pub struct ListConversationsOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+    /// 排序字段列表。 / Ordered list of sort fields.
+    pub order_by: Option<Vec<String>>,
+    /// 排序方向。 / Sort direction.
+    pub order_direction: Option<SortDirection>,
+    /// 空值排序策略。 / Null ordering strategy.
+    pub order_null_handling: Option<NullOrdering>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+    /// 状态过滤条件。 / Status filter.
+    pub status: Option<String>,
+}
+
+/// 分页读取 SQL 结果 / Get paged SQL results 的查询参数和请求头。 / Query values and headers for `get_sql_query_result`.
+#[derive(Clone, Debug, Default)]
+pub struct GetSqlQueryResultOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+}
+
+/// 导出 SQL 结果 / Export SQL results 的查询参数和请求头。 / Query values and headers for `export_sql_query_result`.
+#[derive(Clone, Debug)]
+pub struct ExportSqlQueryResultOptions {
+    /// 导出格式。 / Export format.
+    pub format: SqlExportFormat,
+    /// 期望的导出媒体类型。 / Requested export media type.
+    pub accept: Option<String>,
+}
+
+/// 分页查询会话消息 / List conversation messages 的查询参数和请求头。 / Query values and headers for `list_conversation_messages`.
+#[derive(Clone, Debug, Default)]
+pub struct ListConversationMessagesOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+    /// 排序字段列表。 / Ordered list of sort fields.
+    pub order_by: Option<Vec<String>>,
+    /// 排序方向。 / Sort direction.
+    pub order_direction: Option<SortDirection>,
+    /// 空值排序策略。 / Null ordering strategy.
+    pub order_null_handling: Option<NullOrdering>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+}
+
+/// 分页查询异步任务 / List asynchronous tasks 的查询参数和请求头。 / Query values and headers for `list_conversation_async_tasks`.
+#[derive(Clone, Debug, Default)]
+pub struct ListConversationAsyncTasksOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+    /// 排序字段列表。 / Ordered list of sort fields.
+    pub order_by: Option<Vec<String>>,
+    /// 排序方向。 / Sort direction.
+    pub order_direction: Option<SortDirection>,
+    /// 空值排序策略。 / Null ordering strategy.
+    pub order_null_handling: Option<NullOrdering>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+    /// 状态过滤条件。 / Status filter.
+    pub status: Option<Vec<String>>,
+}
+
+/// 读取消息事件 / Get message events 的查询参数和请求头。 / Query values and headers for `get_chat_events`.
+#[derive(Clone, Debug)]
+pub struct GetChatEventsOptions {
+    /// 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub conversation_id: String,
+    /// 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub message_id: String,
+}
+
+/// 查询用户问答状态 / Get user-input status 的查询参数和请求头。 / Query values and headers for `get_user_input_status`.
+#[derive(Clone, Debug)]
+pub struct GetUserInputStatusOptions {
+    /// 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub conversation_id: String,
+    /// 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub message_id: String,
+}
+
+/// 检查 MD5 文件是否存在 / Check file existence by MD5 的查询参数和请求头。 / Query values and headers for `file_exists_by_content_md5`.
+#[derive(Clone, Debug)]
+pub struct FileExistsByContentMd5Options {
+    /// 文件内容 MD5。 / MD5 digest of the file content.
+    pub content_md5: String,
+}
+
+/// 分页查询工作区制品 / List workspace artifacts 的查询参数和请求头。 / Query values and headers for `list_workspace_artifacts`.
+#[derive(Clone, Debug, Default)]
+pub struct ListWorkspaceArtifactsOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+    /// 排序字段列表。 / Ordered list of sort fields.
+    pub order_by: Option<Vec<String>>,
+    /// 排序方向。 / Sort direction.
+    pub order_direction: Option<SortDirection>,
+    /// 空值排序策略。 / Null ordering strategy.
+    pub order_null_handling: Option<NullOrdering>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+    /// 工作区相对路径前缀。 / Workspace-relative path prefix.
+    pub prefix: Option<String>,
+}
+
+/// 创建工作区文件预览地址 / Create a workspace file preview URL 的查询参数和请求头。 / Query values and headers for `get_workspace_file_preview`.
+#[derive(Clone, Debug)]
+pub struct GetWorkspaceFilePreviewOptions {
+    /// 工作区相对文件路径。 / Workspace-relative file path.
+    pub path: String,
+}
+
+/// configuration 分组的 channel 绑定接口。 / Channel-bound configuration operations.
+pub struct LingyaConfigurationApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaConfigurationApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 读取 Agent 配置 / Get Agent configuration
+    ///
+    pub async fn get_agents_config(&self) -> Result<models::AgentsConfig, LingyaError> {
+        let suffix = "/config".to_owned();
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 读取会话配置 / Get conversation configuration
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn get_conversation_config(
+        &self,
+        conversation_id: &str,
+    ) -> Result<models::ConversationConfig, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/config",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+}
+
+/// chat 分组的 channel 绑定接口。 / Channel-bound chat operations.
+pub struct LingyaChatApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaChatApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 创建会话并提交消息 / Create a conversation and submit a message
+    ///
+    /// * `input` - 创建会话并提交消息 / Create a conversation and submit a message 的强类型请求体。 / Typed request body for `create_chat`.
+    pub async fn create_chat(
+        &self,
+        input: &models::AiChatInput,
+    ) -> Result<models::AiChatSubmission, LingyaError> {
+        let suffix = "".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 向已有会话提交消息 / Submit a message to an existing conversation
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 向已有会话提交消息 / Submit a message to an existing conversation 的强类型请求体。 / Typed request body for `continue_chat`.
+    pub async fn continue_chat(
+        &self,
+        conversation_id: &str,
+        input: &models::AiChatInput,
+    ) -> Result<models::AiChatSubmission, LingyaError> {
+        let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 订阅消息事件流 / Stream message events
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `request_id` - 可选诊断请求 ID，便于关联客户端与服务端日志。 / Optional diagnostic request ID used to correlate client and server logs.
+    /// * `input` - 订阅消息事件流 / Stream message events 的强类型请求体。 / Typed request body for `stream_chat_events`.
+    pub async fn stream_chat_events(
+        &self,
+        conversation_id: &str,
+        input: &models::AiChatStreamInput,
+        options: &StreamChatEventsOptions,
+    ) -> Result<AiChatEventStream, LingyaError> {
+        self.client
+            .stream_chat_events_internal(conversation_id, input, options.request_id.as_deref())
+            .await
+    }
+
+    /// 探测 SSE 连接 / Probe the SSE connection
+    ///
+    /// * `request_id` - 可选诊断请求 ID，便于关联客户端与服务端日志。 / Optional diagnostic request ID used to correlate client and server logs.
+    /// * `input` - 探测 SSE 连接 / Probe the SSE connection 的强类型请求体。 / Typed request body for `probe_event_stream`.
+    pub async fn probe_event_stream(
+        &self,
+        input: &models::ChatStreamProbeInput,
+        options: &ProbeEventStreamOptions,
+    ) -> Result<ProbeEventStream, LingyaError> {
+        self.client
+            .probe_event_stream_internal(input, options.request_id.as_deref())
+            .await
+    }
+
+    /// 中断会话执行 / Interrupt conversation execution
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn interrupt_conversation(&self, conversation_id: &str) -> Result<(), LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/interrupt",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_status_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+
+    /// 压缩会话上下文 / Compact conversation context
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `force` - 是否忽略当前阈值并强制压缩。 / Whether to compact regardless of the current threshold.
+    pub async fn compact_conversation(
+        &self,
+        conversation_id: &str,
+        options: &CompactConversationOptions,
+    ) -> Result<(), LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/compact",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.force {
+            query.push(QueryParameter::new("force", value.to_string()));
+        }
+        self.client
+            .request_status_internal(Method::POST, &suffix, None, &query)
+            .await
+    }
+}
+
+/// conversations 分组的 channel 绑定接口。 / Channel-bound conversations operations.
+pub struct LingyaConversationsApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaConversationsApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 删除会话 / Delete a conversation
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn delete_conversation(&self, conversation_id: &str) -> Result<(), LingyaError> {
+        let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
+        self.client
+            .request_status_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+
+    /// 读取上下文占用 / Get context usage
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn get_conversation_context_usage(
+        &self,
+        conversation_id: &str,
+    ) -> Result<models::ConversationContextUsage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/context-usage",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 分页查询会话 / List conversations
+    ///
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
+    /// * `order_direction` - 排序方向。 / Sort direction.
+    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    /// * `status` - 状态过滤条件。 / Status filter.
+    pub async fn list_conversations(
+        &self,
+        options: &ListConversationsOptions,
+    ) -> Result<models::ConversationSummaryList, LingyaError> {
+        let suffix = "/conversations".to_owned();
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        for value in options.order_by.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("orderBy", value));
+        }
+        if let Some(value) = &options.order_direction {
+            query.push(QueryParameter::new("orderDirection", value.as_str()));
+        }
+        if let Some(value) = &options.order_null_handling {
+            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        }
+        if let Some(value) = &options.keyword {
+            query.push(QueryParameter::new("keyword", value.as_str()));
+        }
+        if let Some(value) = &options.status {
+            query.push(QueryParameter::new("status", value.as_str()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 查询活动会话 / List active conversations
+    ///
+    pub async fn list_active_conversations(&self) -> Result<models::ConversationIds, LingyaError> {
+        let suffix = "/conversations/active".to_owned();
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 查询未读会话 / List unread conversations
+    ///
+    pub async fn list_unread_conversations(&self) -> Result<models::ConversationIds, LingyaError> {
+        let suffix = "/conversations/unread".to_owned();
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 批量查询会话活动 / Query conversation activities
+    ///
+    /// * `input` - 批量查询会话活动 / Query conversation activities 的强类型请求体。 / Typed request body for `query_conversation_activities`.
+    pub async fn query_conversation_activities(
+        &self,
+        input: &models::ConversationActivityBatchInput,
+    ) -> Result<models::ConversationActivityList, LingyaError> {
+        let suffix = "/conversations/activity/query".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 推进会话已读游标 / Mark a conversation as read
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 推进会话已读游标 / Mark a conversation as read 的强类型请求体。 / Typed request body for `mark_conversation_read`.
+    pub async fn mark_conversation_read(
+        &self,
+        conversation_id: &str,
+        input: &models::ConversationReadReceiptInput,
+    ) -> Result<models::ConversationReadReceipt, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/read-receipt",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::PUT,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 读取会话统计 / Get conversation statistics
+    ///
+    pub async fn get_conversation_stats(&self) -> Result<models::ConversationStats, LingyaError> {
+        let suffix = "/conversations/stats".to_owned();
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 读取会话标题 / Get conversation title
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn get_conversation_title(
+        &self,
+        conversation_id: &str,
+    ) -> Result<models::ConversationTitle, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/title",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 更新会话标题 / Update conversation title
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 更新会话标题 / Update conversation title 的强类型请求体。 / Typed request body for `update_conversation_title`.
+    pub async fn update_conversation_title(
+        &self,
+        conversation_id: &str,
+        input: &models::ConversationTitleInput,
+    ) -> Result<(), LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/title",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_status_internal(
+                Method::PATCH,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 更新会话状态 / Update conversation status
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 更新会话状态 / Update conversation status 的强类型请求体。 / Typed request body for `update_conversation_status`.
+    pub async fn update_conversation_status(
+        &self,
+        conversation_id: &str,
+        input: &models::ConversationStatusInput,
+    ) -> Result<(), LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/status",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_status_internal(
+                Method::PATCH,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 查询会话分享 / List conversation shares
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn list_conversation_shares(
+        &self,
+        conversation_id: &str,
+    ) -> Result<models::ConversationShareList, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/shares",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 创建会话分享 / Create a conversation share
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 创建会话分享 / Create a conversation share 的强类型请求体。 / Typed request body for `create_conversation_share`.
+    pub async fn create_conversation_share(
+        &self,
+        conversation_id: &str,
+        input: &models::ConversationShareInput,
+    ) -> Result<models::ConversationShareCreated, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/shares",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 撤销会话分享 / Revoke a conversation share
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `share_id` - 会话分享记录 ID。 / Conversation-share record ID.
+    pub async fn revoke_conversation_share(
+        &self,
+        conversation_id: &str,
+        share_id: i64,
+    ) -> Result<models::ConversationShareRevoked, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/shares/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(share_id)
+        );
+        self.client
+            .request_model_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+}
+
+/// sql 分组的 channel 绑定接口。 / Channel-bound sql operations.
+pub struct LingyaSqlApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaSqlApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 分页读取 SQL 结果 / Get paged SQL results
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `result_id` - SQL 查询结果 ID。 / SQL query-result ID.
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    pub async fn get_sql_query_result(
+        &self,
+        conversation_id: &str,
+        result_id: &str,
+        options: &GetSqlQueryResultOptions,
+    ) -> Result<models::SqlQueryResultPage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/sql-query-results/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(result_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 读取 SQL 图表数据 / Get SQL chart data
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `result_id` - SQL 查询结果 ID。 / SQL query-result ID.
+    pub async fn get_sql_query_chart_data(
+        &self,
+        conversation_id: &str,
+        result_id: &str,
+    ) -> Result<models::SqlChartDataset, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/sql-query-results/{}/chart-data",
+            encode_path_segment(conversation_id),
+            encode_path_segment(result_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 导出 SQL 结果 / Export SQL results
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `result_id` - SQL 查询结果 ID。 / SQL query-result ID.
+    /// * `format` - 导出格式。 / Export format.
+    /// * `accept` - 期望的导出媒体类型。 / Requested export media type.
+    pub async fn export_sql_query_result(
+        &self,
+        conversation_id: &str,
+        result_id: &str,
+        options: &ExportSqlQueryResultOptions,
+    ) -> Result<Vec<u8>, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/sql-query-results/{}/export",
+            encode_path_segment(conversation_id),
+            encode_path_segment(result_id)
+        );
+        let mut query = Vec::new();
+        query.push(QueryParameter::new("format", options.format.as_str()));
+        self.client
+            .request_bytes_internal(
+                &suffix,
+                &query,
+                options
+                    .accept
+                    .as_deref()
+                    .unwrap_or("application/octet-stream"),
+            )
+            .await
+    }
+}
+
+/// messages 分组的 channel 绑定接口。 / Channel-bound messages operations.
+pub struct LingyaMessagesApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaMessagesApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 分页查询会话消息 / List conversation messages
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
+    /// * `order_direction` - 排序方向。 / Sort direction.
+    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    pub async fn list_conversation_messages(
+        &self,
+        conversation_id: &str,
+        options: &ListConversationMessagesOptions,
+    ) -> Result<models::ConversationMessagePage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/messages",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        for value in options.order_by.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("orderBy", value));
+        }
+        if let Some(value) = &options.order_direction {
+            query.push(QueryParameter::new("orderDirection", value.as_str()));
+        }
+        if let Some(value) = &options.order_null_handling {
+            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        }
+        if let Some(value) = &options.keyword {
+            query.push(QueryParameter::new("keyword", value.as_str()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 读取单条会话消息 / Get a conversation message
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub async fn get_conversation_message(
+        &self,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Result<models::ConversationMessage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/messages/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(message_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 分页查询异步任务 / List asynchronous tasks
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
+    /// * `order_direction` - 排序方向。 / Sort direction.
+    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    /// * `status` - 状态过滤条件。 / Status filter.
+    pub async fn list_conversation_async_tasks(
+        &self,
+        conversation_id: &str,
+        options: &ListConversationAsyncTasksOptions,
+    ) -> Result<models::AsyncTaskPage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/async-tasks",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        for value in options.order_by.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("orderBy", value));
+        }
+        if let Some(value) = &options.order_direction {
+            query.push(QueryParameter::new("orderDirection", value.as_str()));
+        }
+        if let Some(value) = &options.order_null_handling {
+            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        }
+        if let Some(value) = &options.keyword {
+            query.push(QueryParameter::new("keyword", value.as_str()));
+        }
+        for value in options.status.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("status", value));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 读取异步任务 / Get an asynchronous task
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `async_task_id` - 异步任务 ID。 / Asynchronous task ID.
+    pub async fn get_conversation_async_task(
+        &self,
+        conversation_id: &str,
+        async_task_id: &str,
+    ) -> Result<models::AsyncTask, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/async-tasks/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(async_task_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 取消排队消息 / Cancel a queued message
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub async fn cancel_queued_message(
+        &self,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Result<models::ConversationMessage, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/messages/{}/queue",
+            encode_path_segment(conversation_id),
+            encode_path_segment(message_id)
+        );
+        self.client
+            .request_model_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+}
+
+/// events 分组的 channel 绑定接口。 / Channel-bound events operations.
+pub struct LingyaEventsApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaEventsApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 读取消息事件 / Get message events
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub async fn get_chat_events(
+        &self,
+        options: &GetChatEventsOptions,
+    ) -> Result<models::AiChatBriefEventList, LingyaError> {
+        let suffix = "/events".to_owned();
+        let mut query = Vec::new();
+        query.push(QueryParameter::new(
+            "conversationId",
+            options.conversation_id.to_string(),
+        ));
+        query.push(QueryParameter::new(
+            "messageId",
+            options.message_id.to_string(),
+        ));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 批量读取消息事件 / Get message events in batch
+    ///
+    /// * `input` - 批量读取消息事件 / Get message events in batch 的强类型请求体。 / Typed request body for `get_chat_events_batch`.
+    pub async fn get_chat_events_batch(
+        &self,
+        input: &models::AiChatEventsBatchInput,
+    ) -> Result<models::AiChatEventsBatch, LingyaError> {
+        let suffix = "/events/batch".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+}
+
+/// interactions 分组的 channel 绑定接口。 / Channel-bound interactions operations.
+pub struct LingyaInteractionsApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaInteractionsApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 提交计划审批 / Submit plan approval
+    ///
+    /// * `input` - 提交计划审批 / Submit plan approval 的强类型请求体。 / Typed request body for `approve_plan`.
+    pub async fn approve_plan(
+        &self,
+        input: &models::PlanApprovalInput,
+    ) -> Result<models::OperationResult, LingyaError> {
+        let suffix = "/plan/approve".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 查询计划审批状态 / Get plan approval status
+    ///
+    /// * `plan_id` - 等待审批的计划 ID。 / Pending plan-approval ID.
+    pub async fn get_plan_status(&self, plan_id: &str) -> Result<models::PlanStatus, LingyaError> {
+        let suffix = format!("/plan/{}/status", encode_path_segment(plan_id));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 查询用户问答状态 / Get user-input status
+    ///
+    /// * `question_id` - 等待回答的问题 ID。 / Pending question ID.
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub async fn get_user_input_status(
+        &self,
+        question_id: &str,
+        options: &GetUserInputStatusOptions,
+    ) -> Result<models::UserInputStatus, LingyaError> {
+        let suffix = format!("/user-input/{}/status", encode_path_segment(question_id));
+        let mut query = Vec::new();
+        query.push(QueryParameter::new(
+            "conversationId",
+            options.conversation_id.to_string(),
+        ));
+        query.push(QueryParameter::new(
+            "messageId",
+            options.message_id.to_string(),
+        ));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 提交用户回答 / Submit a user answer
+    ///
+    /// * `input` - 提交用户回答 / Submit a user answer 的强类型请求体。 / Typed request body for `answer_user_input`.
+    pub async fn answer_user_input(
+        &self,
+        input: &models::UserInputAnswerInput,
+    ) -> Result<models::OperationResult, LingyaError> {
+        let suffix = "/user-input/answer".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+}
+
+/// files 分组的 channel 绑定接口。 / Channel-bound files operations.
+pub struct LingyaFilesApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaFilesApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 创建预签名上传地址 / Create a presigned upload URL
+    ///
+    /// * `input` - 创建预签名上传地址 / Create a presigned upload URL 的强类型请求体。 / Typed request body for `create_pre_signed_upload`.
+    pub async fn create_pre_signed_upload(
+        &self,
+        input: &models::GeneratePreSignedUrlInput,
+    ) -> Result<models::GeneratePreSignedUrlOutput, LingyaError> {
+        let suffix = "/files/pre-signed-url/write".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 确认预签名上传 / Confirm a presigned upload
+    ///
+    /// * `input` - 确认预签名上传 / Confirm a presigned upload 的强类型请求体。 / Typed request body for `confirm_pre_signed_upload`.
+    pub async fn confirm_pre_signed_upload(
+        &self,
+        input: &models::ConfirmUploadInput,
+    ) -> Result<models::AgentFile, LingyaError> {
+        let suffix = "/files/pre-signed-url/confirm".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 按 MD5 复用文件 / Reuse a file by MD5
+    ///
+    /// * `input` - 按 MD5 复用文件 / Reuse a file by MD5 的强类型请求体。 / Typed request body for `create_file_by_content_md5`.
+    pub async fn create_file_by_content_md5(
+        &self,
+        input: &models::CreateFileInput,
+    ) -> Result<models::AgentFile, LingyaError> {
+        let suffix = "/files/contentMd5".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 检查 MD5 文件是否存在 / Check file existence by MD5
+    ///
+    /// * `content_md5` - 文件内容 MD5。 / MD5 digest of the file content.
+    pub async fn file_exists_by_content_md5(
+        &self,
+        options: &FileExistsByContentMd5Options,
+    ) -> Result<models::FileExists, LingyaError> {
+        let suffix = "/files/meta/contentMd5".to_owned();
+        let mut query = Vec::new();
+        query.push(QueryParameter::new(
+            "contentMd5",
+            options.content_md5.to_string(),
+        ));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 创建会话文件预览地址 / Create a conversation file preview URL
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `file_id` - 文件记录 ID。 / File record ID.
+    pub async fn get_conversation_file_preview(
+        &self,
+        conversation_id: &str,
+        file_id: i64,
+    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/files/{}/preview",
+            encode_path_segment(conversation_id),
+            encode_path_segment(file_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 创建计划快照预览地址 / Create a plan snapshot preview URL
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    /// * `file_id` - 文件记录 ID。 / File record ID.
+    pub async fn get_plan_intermediate_file_preview(
+        &self,
+        conversation_id: &str,
+        message_id: &str,
+        file_id: i64,
+    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/messages/{}/plan-intermediate-files/{}/preview",
+            encode_path_segment(conversation_id),
+            encode_path_segment(message_id),
+            encode_path_segment(file_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+}
+
+/// knowledge 分组的 channel 绑定接口。 / Channel-bound knowledge operations.
+pub struct LingyaKnowledgeApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaKnowledgeApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 批量读取引用元数据 / Get citation metadata in batch
+    ///
+    /// * `input` - 批量读取引用元数据 / Get citation metadata in batch 的强类型请求体。 / Typed request body for `get_citation_metadata_batch`.
+    pub async fn get_citation_metadata_batch(
+        &self,
+        input: &[models::ReturnedReference],
+    ) -> Result<models::CitationMetadataList, LingyaError> {
+        let suffix = "/knowledge-bases/citations/metadata".to_owned();
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 读取引用元数据 / Get citation metadata
+    ///
+    /// * `citation_type` - 知识引用类型。 / Knowledge citation type.
+    /// * `reference_id` - 知识引用记录 ID。 / Knowledge-reference record ID.
+    pub async fn get_citation_metadata(
+        &self,
+        citation_type: &str,
+        reference_id: i64,
+    ) -> Result<models::CitationMetadata, LingyaError> {
+        let suffix = format!(
+            "/knowledge-bases/citations/{}/{}/metadata",
+            encode_path_segment(citation_type),
+            encode_path_segment(reference_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+}
+
+/// workspace 分组的 channel 绑定接口。 / Channel-bound workspace operations.
+pub struct LingyaWorkspaceApi<'a> {
+    client: &'a LingyaAgentsUserClient,
+}
+
+impl<'a> LingyaWorkspaceApi<'a> {
+    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+        Self { client }
+    }
+
+    /// 分页查询工作区制品 / List workspace artifacts
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
+    /// * `order_direction` - 排序方向。 / Sort direction.
+    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    /// * `prefix` - 工作区相对路径前缀。 / Workspace-relative path prefix.
+    pub async fn list_workspace_artifacts(
+        &self,
+        conversation_id: &str,
+        options: &ListWorkspaceArtifactsOptions,
+    ) -> Result<models::WorkspaceArtifactList, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/workspace/files",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        for value in options.order_by.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("orderBy", value));
+        }
+        if let Some(value) = &options.order_direction {
+            query.push(QueryParameter::new("orderDirection", value.as_str()));
+        }
+        if let Some(value) = &options.order_null_handling {
+            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        }
+        if let Some(value) = &options.keyword {
+            query.push(QueryParameter::new("keyword", value.as_str()));
+        }
+        if let Some(value) = &options.prefix {
+            query.push(QueryParameter::new("prefix", value.as_str()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 创建工作区文件预览地址 / Create a workspace file preview URL
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `path` - 工作区相对文件路径。 / Workspace-relative file path.
+    pub async fn get_workspace_file_preview(
+        &self,
+        conversation_id: &str,
+        options: &GetWorkspaceFilePreviewOptions,
+    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+        let suffix = format!(
+            "/conversations/{}/workspace/files/preview",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        query.push(QueryParameter::new("path", options.path.to_string()));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+}
+
+fn encode_path_segment(value: impl ToString) -> String {
+    url::form_urlencoded::byte_serialize(value.to_string().as_bytes()).collect()
+}
