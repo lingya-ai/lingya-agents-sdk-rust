@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Export `AgentsClient`, `AgentsUserClient`, `ApiError`, unprefixed event types, and unprefixed group facades.
+- Keep the 0.3.x `Lingya*` names as deprecated compatibility exports.
+- Rewrite the README as a usage-only bilingual guide.
+
 ## 0.3.0
 
 - Bind `channel_id` once and expose all 46 operations through generated, grouped facades.

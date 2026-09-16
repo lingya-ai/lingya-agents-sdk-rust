@@ -17,8 +17,8 @@ use thiserror::Error;
 use url::form_urlencoded;
 
 use crate::bound_api::{
-    LingyaChatApi, LingyaConfigurationApi, LingyaConversationsApi, LingyaEventsApi, LingyaFilesApi,
-    LingyaInteractionsApi, LingyaKnowledgeApi, LingyaMessagesApi, LingyaSqlApi, LingyaWorkspaceApi,
+    ChatApi, ConfigurationApi, ConversationsApi, EventsApi, FilesApi, InteractionsApi,
+    KnowledgeApi, MessagesApi, SqlApi, WorkspaceApi,
 };
 use crate::events::{decode_ai_chat_brief_event, LingyaAiChatBriefEvent};
 use crate::models::{AiChatStreamInput, ChatStreamProbeEvent, ChatStreamProbeInput};
@@ -174,53 +174,53 @@ impl LingyaAgentsUserClient {
     }
 
     /// 返回创建聊天和消费实时事件的 channel 绑定接口。
-    pub fn chat(&self) -> LingyaChatApi<'_> {
-        LingyaChatApi::new(self)
+    pub fn chat(&self) -> ChatApi<'_> {
+        ChatApi::new(self)
     }
 
     /// 返回 Agent 与会话配置的 channel 绑定接口。
-    pub fn configuration(&self) -> LingyaConfigurationApi<'_> {
-        LingyaConfigurationApi::new(self)
+    pub fn configuration(&self) -> ConfigurationApi<'_> {
+        ConfigurationApi::new(self)
     }
 
     /// 返回会话、状态和分享的 channel 绑定接口。
-    pub fn conversations(&self) -> LingyaConversationsApi<'_> {
-        LingyaConversationsApi::new(self)
+    pub fn conversations(&self) -> ConversationsApi<'_> {
+        ConversationsApi::new(self)
     }
 
     /// 返回持久化聊天事件的 channel 绑定接口。
-    pub fn events(&self) -> LingyaEventsApi<'_> {
-        LingyaEventsApi::new(self)
+    pub fn events(&self) -> EventsApi<'_> {
+        EventsApi::new(self)
     }
 
     /// 返回文件与预签名地址的 channel 绑定接口。
-    pub fn files(&self) -> LingyaFilesApi<'_> {
-        LingyaFilesApi::new(self)
+    pub fn files(&self) -> FilesApi<'_> {
+        FilesApi::new(self)
     }
 
     /// 返回计划审批与用户回答的 channel 绑定接口。
-    pub fn interactions(&self) -> LingyaInteractionsApi<'_> {
-        LingyaInteractionsApi::new(self)
+    pub fn interactions(&self) -> InteractionsApi<'_> {
+        InteractionsApi::new(self)
     }
 
     /// 返回知识引用元数据的 channel 绑定接口。
-    pub fn knowledge(&self) -> LingyaKnowledgeApi<'_> {
-        LingyaKnowledgeApi::new(self)
+    pub fn knowledge(&self) -> KnowledgeApi<'_> {
+        KnowledgeApi::new(self)
     }
 
     /// 返回消息与异步任务的 channel 绑定接口。
-    pub fn messages(&self) -> LingyaMessagesApi<'_> {
-        LingyaMessagesApi::new(self)
+    pub fn messages(&self) -> MessagesApi<'_> {
+        MessagesApi::new(self)
     }
 
     /// 返回 SQL 查询与导出的 channel 绑定接口。
-    pub fn sql(&self) -> LingyaSqlApi<'_> {
-        LingyaSqlApi::new(self)
+    pub fn sql(&self) -> SqlApi<'_> {
+        SqlApi::new(self)
     }
 
     /// 返回会话工作区制品的 channel 绑定接口。
-    pub fn workspace(&self) -> LingyaWorkspaceApi<'_> {
-        LingyaWorkspaceApi::new(self)
+    pub fn workspace(&self) -> WorkspaceApi<'_> {
+        WorkspaceApi::new(self)
     }
 
     /// 返回兼容期的底层客户端。
@@ -541,3 +541,10 @@ pub fn sign_canonical(secret_key: &str, canonical: &str) -> Result<String, Lingy
     mac.update(canonical.as_bytes());
     Ok(hex::encode(mac.finalize().into_bytes()))
 }
+
+/// SDK 入口。 / SDK entry point.
+pub type AgentsClient = LingyaAgentsClient;
+/// 已绑定外部用户的客户端。 / Client bound to one external user.
+pub type AgentsUserClient = LingyaAgentsUserClient;
+/// 不包含凭证的 API 错误。 / API error that never contains credentials.
+pub type ApiError = LingyaError;

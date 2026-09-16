@@ -4,7 +4,7 @@ use std::net::TcpListener;
 use std::thread;
 
 use lingya_agents_sdk::models::AiChatInput;
-use lingya_agents_sdk::{LingyaAgentsClient, OpenApiCredentials};
+use lingya_agents_sdk::{AgentsClient, OpenApiCredentials};
 use regex::Regex;
 use serde::Deserialize;
 
@@ -61,7 +61,7 @@ async fn root_channel_is_encoded_and_injected_once() {
         .unwrap();
         request
     });
-    let user = LingyaAgentsClient::new(
+    let user = AgentsClient::new(
         format!("http://{address}"),
         "channel/一",
         OpenApiCredentials::new("abcdefghijklmnopqrstuvwxyzABCDEF", "test-secret"),

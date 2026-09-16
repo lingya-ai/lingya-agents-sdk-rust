@@ -12,9 +12,9 @@ use lingya_agents_sdk::models::{
     GeneratePreSignedUrlInput, PlanApprovalInput, UserInputAnswerInput,
 };
 use lingya_agents_sdk::{
-    CompactConversationOptions, ExportSqlQueryResultOptions, FileExistsByContentMd5Options,
-    GetChatEventsOptions, GetSqlQueryResultOptions, GetUserInputStatusOptions,
-    GetWorkspaceFilePreviewOptions, LingyaAgentsClient, LingyaAgentsUserClient, LingyaError,
+    AgentsClient, AgentsUserClient, ApiError, CompactConversationOptions,
+    ExportSqlQueryResultOptions, FileExistsByContentMd5Options, GetChatEventsOptions,
+    GetSqlQueryResultOptions, GetUserInputStatusOptions, GetWorkspaceFilePreviewOptions,
     ListConversationAsyncTasksOptions, ListConversationMessagesOptions, ListConversationsOptions,
     ListWorkspaceArtifactsOptions, OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat,
     StreamChatEventsOptions,
@@ -40,7 +40,7 @@ macro_rules! success {
 macro_rules! domain {
     ($coverage:expr, $method:expr, $suffix:expr, $future:expr) => {{
         match $future.await {
-            Err(LingyaError::Http { status, .. })
+            Err(ApiError::Http { status, .. })
                 if matches!(status.as_u16(), 400 | 403 | 404 | 409 | 422) =>
             {
                 $coverage.record(
@@ -52,7 +52,7 @@ macro_rules! domain {
             }
             Err(error) => return Err(error.into()),
             Ok(_) => {
-                return Err(LingyaError::InvalidInput(format!(
+                return Err(ApiError::InvalidInput(format!(
                     "{} {} unexpectedly succeeded",
                     $method.as_str(),
                     $suffix
@@ -69,7 +69,7 @@ async fn all_46_real_endpoints() -> Result<(), Box<dyn Error>> {
         eprintln!("skipped: live environment variables are required");
         return Ok(());
     };
-    let client = LingyaAgentsClient::new(
+    let client = AgentsClient::new(
         required_env("LINGYA_LIVE_BASE_URL")?,
         required_env("LINGYA_LIVE_CHANNEL_ID")?,
         OpenApiCredentials::new(access_key, required_env("OPENAPI_SK")?),
@@ -473,7 +473,7 @@ async fn run_scenario(
     let file_uk = upload
         .file_uk
         .flatten()
-        .ok_or_else(|| LingyaError::InvalidInput("pre-signed upload omitted fileUk".into()))?;
+        .ok_or_else(|| ApiError::InvalidInput("pre-signed upload omitted fileUk".into()))?;
     let confirm = ConfirmUploadInput::new(file_uk, md5.into());
     domain!(
         coverage,
@@ -567,7 +567,7 @@ async fn run_scenario(
 }
 
 struct Coverage {
-    user: LingyaAgentsUserClient,
+    user: AgentsUserClient,
     results: Vec<ResultRow>,
     seen: BTreeSet<String>,
 }
@@ -580,7 +580,7 @@ struct ResultRow {
 }
 
 impl Coverage {
-    fn new(user: LingyaAgentsUserClient) -> Self {
+    fn new(user: AgentsUserClient) -> Self {
         Self {
             user,
             results: vec![],
@@ -594,13 +594,11 @@ impl Coverage {
         suffix: &str,
         status: u16,
         outcome: &str,
-    ) -> Result<(), LingyaError> {
+    ) -> Result<(), ApiError> {
         let path = format!("{BASE_PATH}{suffix}");
         let key = format!("{} {path}", method.as_str());
         if !self.seen.insert(key.clone()) {
-            return Err(LingyaError::InvalidInput(format!(
-                "duplicate endpoint: {key}"
-            )));
+            return Err(ApiError::InvalidInput(format!("duplicate endpoint: {key}")));
         }
         self.results.push(ResultRow {
             method: method.to_string(),

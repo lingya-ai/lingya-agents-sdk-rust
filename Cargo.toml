@@ -1,6 +1,6 @@
 [package]
 name = "lingya-agents-sdk"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Lingya AI"]
 description = "Strongly typed Rust SDK for Lingya Agents OpenAPI"

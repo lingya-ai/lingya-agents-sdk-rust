@@ -115,6 +115,11 @@ pub enum LingyaToolExtension {
     Unknown(models::UnknownToolExtension),
 }
 
+/// 15 种已知聊天事件及未知事件后备类型。 / Known chat events plus the unknown fallback.
+pub type AiChatBriefEvent = LingyaAiChatBriefEvent;
+/// 已知工具扩展及未知扩展后备类型。 / Known tool extensions plus the unknown fallback.
+pub type ToolExtension = LingyaToolExtension;
+
 /// 按 `type` 解码聊天事件，未知分支保留输入 JSON 原文。
 pub fn decode_ai_chat_brief_event(raw_json: &str) -> Result<LingyaAiChatBriefEvent, LingyaError> {
     #[derive(Deserialize)]

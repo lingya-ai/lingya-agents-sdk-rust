@@ -69,21 +69,21 @@ lines = [
     "//! Channel-bound API groups generated from the Lingya Agents contract.",
     "//!",
     "//! The wire contract keeps `channelId` in every path. These public methods",
-    "//! omit it because [`LingyaAgentsClient`](crate::LingyaAgentsClient) binds it once.",
+    "//! omit it because [`AgentsClient`](crate::AgentsClient) binds it once.",
     "",
     "use std::pin::Pin;",
     "",
     "use futures_util::Stream;",
     "use reqwest::Method;",
     "",
-    "use crate::client::{LingyaAgentsUserClient, LingyaError, QueryParameter};",
-    "use crate::events::LingyaAiChatBriefEvent;",
+    "use crate::client::{AgentsUserClient, ApiError, QueryParameter};",
+    "use crate::events::AiChatBriefEvent;",
     "use crate::models;",
     "",
     "/// 可取消的强类型聊天事件流。 / Cancellable strongly typed chat-event stream.",
-    "pub type AiChatEventStream = Pin<Box<dyn Stream<Item = Result<LingyaAiChatBriefEvent, LingyaError>> + Send>>;",
+    "pub type AiChatEventStream = Pin<Box<dyn Stream<Item = Result<AiChatBriefEvent, ApiError>> + Send>>;",
     "/// 可取消的诊断事件流。 / Cancellable diagnostic event stream.",
-    "pub type ProbeEventStream = Pin<Box<dyn Stream<Item = Result<models::ChatStreamProbeEvent, LingyaError>> + Send>>;",
+    "pub type ProbeEventStream = Pin<Box<dyn Stream<Item = Result<models::ChatStreamProbeEvent, ApiError>> + Send>>;",
     "",
     "/// 排序方向。 / Sort direction.",
     "#[derive(Clone, Copy, Debug, Eq, PartialEq)]",
@@ -152,16 +152,16 @@ for operation in option_operations:
     lines.extend(["}", ""])
 
 for group in groups:
-    class_name = f"Lingya{pascal_case(group)}Api"
+    class_name = f"{pascal_case(group)}Api"
     lines.extend(
         [
             f"/// {group} 分组的 channel 绑定接口。 / Channel-bound {group} operations.",
             f"pub struct {class_name}<'a> {{",
-            "    client: &'a LingyaAgentsUserClient,",
+            "    client: &'a AgentsUserClient,",
             "}",
             "",
             f"impl<'a> {class_name}<'a> {{",
-            "    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self { Self { client } }",
+            "    pub(crate) fn new(client: &'a AgentsUserClient) -> Self { Self { client } }",
             "",
         ]
     )
@@ -199,7 +199,7 @@ for group in groups:
         lines.append(f"    pub async fn {snake_case(operation['operationId'])}(")
         lines.append("        &self,")
         lines.extend(f"        {parameter}," for parameter in signature)
-        lines.append(f"    ) -> Result<{return_type}, LingyaError> {{")
+        lines.append(f"    ) -> Result<{return_type}, ApiError> {{")
         suffix = operation["relativePath"]
         format_arguments = []
         for parameter in path_parameters:

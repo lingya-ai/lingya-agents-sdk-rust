@@ -1,23 +1,22 @@
 //! Channel-bound API groups generated from the Lingya Agents contract.
 //!
 //! The wire contract keeps `channelId` in every path. These public methods
-//! omit it because [`LingyaAgentsClient`](crate::LingyaAgentsClient) binds it once.
+//! omit it because [`AgentsClient`](crate::AgentsClient) binds it once.
 
 use std::pin::Pin;
 
 use futures_util::Stream;
 use reqwest::Method;
 
-use crate::client::{LingyaAgentsUserClient, LingyaError, QueryParameter};
-use crate::events::LingyaAiChatBriefEvent;
+use crate::client::{AgentsUserClient, ApiError, QueryParameter};
+use crate::events::AiChatBriefEvent;
 use crate::models;
 
 /// 可取消的强类型聊天事件流。 / Cancellable strongly typed chat-event stream.
-pub type AiChatEventStream =
-    Pin<Box<dyn Stream<Item = Result<LingyaAiChatBriefEvent, LingyaError>> + Send>>;
+pub type AiChatEventStream = Pin<Box<dyn Stream<Item = Result<AiChatBriefEvent, ApiError>> + Send>>;
 /// 可取消的诊断事件流。 / Cancellable diagnostic event stream.
 pub type ProbeEventStream =
-    Pin<Box<dyn Stream<Item = Result<models::ChatStreamProbeEvent, LingyaError>> + Send>>;
+    Pin<Box<dyn Stream<Item = Result<models::ChatStreamProbeEvent, ApiError>> + Send>>;
 
 /// 排序方向。 / Sort direction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -222,18 +221,18 @@ pub struct GetWorkspaceFilePreviewOptions {
 }
 
 /// configuration 分组的 channel 绑定接口。 / Channel-bound configuration operations.
-pub struct LingyaConfigurationApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct ConfigurationApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaConfigurationApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> ConfigurationApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
     /// 读取 Agent 配置 / Get Agent configuration
     ///
-    pub async fn get_agents_config(&self) -> Result<models::AgentsConfig, LingyaError> {
+    pub async fn get_agents_config(&self) -> Result<models::AgentsConfig, ApiError> {
         let suffix = "/config".to_owned();
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
@@ -246,7 +245,7 @@ impl<'a> LingyaConfigurationApi<'a> {
     pub async fn get_conversation_config(
         &self,
         conversation_id: &str,
-    ) -> Result<models::ConversationConfig, LingyaError> {
+    ) -> Result<models::ConversationConfig, ApiError> {
         let suffix = format!(
             "/conversations/{}/config",
             encode_path_segment(conversation_id)
@@ -258,12 +257,12 @@ impl<'a> LingyaConfigurationApi<'a> {
 }
 
 /// chat 分组的 channel 绑定接口。 / Channel-bound chat operations.
-pub struct LingyaChatApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct ChatApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaChatApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> ChatApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -273,7 +272,7 @@ impl<'a> LingyaChatApi<'a> {
     pub async fn create_chat(
         &self,
         input: &models::AiChatInput,
-    ) -> Result<models::AiChatSubmission, LingyaError> {
+    ) -> Result<models::AiChatSubmission, ApiError> {
         let suffix = "".to_owned();
         self.client
             .request_model_internal(
@@ -293,7 +292,7 @@ impl<'a> LingyaChatApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::AiChatInput,
-    ) -> Result<models::AiChatSubmission, LingyaError> {
+    ) -> Result<models::AiChatSubmission, ApiError> {
         let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
         self.client
             .request_model_internal(
@@ -315,7 +314,7 @@ impl<'a> LingyaChatApi<'a> {
         conversation_id: &str,
         input: &models::AiChatStreamInput,
         options: &StreamChatEventsOptions,
-    ) -> Result<AiChatEventStream, LingyaError> {
+    ) -> Result<AiChatEventStream, ApiError> {
         self.client
             .stream_chat_events_internal(conversation_id, input, options.request_id.as_deref())
             .await
@@ -329,7 +328,7 @@ impl<'a> LingyaChatApi<'a> {
         &self,
         input: &models::ChatStreamProbeInput,
         options: &ProbeEventStreamOptions,
-    ) -> Result<ProbeEventStream, LingyaError> {
+    ) -> Result<ProbeEventStream, ApiError> {
         self.client
             .probe_event_stream_internal(input, options.request_id.as_deref())
             .await
@@ -338,7 +337,7 @@ impl<'a> LingyaChatApi<'a> {
     /// 中断会话执行 / Interrupt conversation execution
     ///
     /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
-    pub async fn interrupt_conversation(&self, conversation_id: &str) -> Result<(), LingyaError> {
+    pub async fn interrupt_conversation(&self, conversation_id: &str) -> Result<(), ApiError> {
         let suffix = format!(
             "/conversations/{}/interrupt",
             encode_path_segment(conversation_id)
@@ -356,7 +355,7 @@ impl<'a> LingyaChatApi<'a> {
         &self,
         conversation_id: &str,
         options: &CompactConversationOptions,
-    ) -> Result<(), LingyaError> {
+    ) -> Result<(), ApiError> {
         let suffix = format!(
             "/conversations/{}/compact",
             encode_path_segment(conversation_id)
@@ -372,19 +371,19 @@ impl<'a> LingyaChatApi<'a> {
 }
 
 /// conversations 分组的 channel 绑定接口。 / Channel-bound conversations operations.
-pub struct LingyaConversationsApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct ConversationsApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaConversationsApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> ConversationsApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
     /// 删除会话 / Delete a conversation
     ///
     /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
-    pub async fn delete_conversation(&self, conversation_id: &str) -> Result<(), LingyaError> {
+    pub async fn delete_conversation(&self, conversation_id: &str) -> Result<(), ApiError> {
         let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
         self.client
             .request_status_internal(Method::DELETE, &suffix, None, &[])
@@ -397,7 +396,7 @@ impl<'a> LingyaConversationsApi<'a> {
     pub async fn get_conversation_context_usage(
         &self,
         conversation_id: &str,
-    ) -> Result<models::ConversationContextUsage, LingyaError> {
+    ) -> Result<models::ConversationContextUsage, ApiError> {
         let suffix = format!(
             "/conversations/{}/context-usage",
             encode_path_segment(conversation_id)
@@ -419,7 +418,7 @@ impl<'a> LingyaConversationsApi<'a> {
     pub async fn list_conversations(
         &self,
         options: &ListConversationsOptions,
-    ) -> Result<models::ConversationSummaryList, LingyaError> {
+    ) -> Result<models::ConversationSummaryList, ApiError> {
         let suffix = "/conversations".to_owned();
         let mut query = Vec::new();
         if let Some(value) = &options.current {
@@ -450,7 +449,7 @@ impl<'a> LingyaConversationsApi<'a> {
 
     /// 查询活动会话 / List active conversations
     ///
-    pub async fn list_active_conversations(&self) -> Result<models::ConversationIds, LingyaError> {
+    pub async fn list_active_conversations(&self) -> Result<models::ConversationIds, ApiError> {
         let suffix = "/conversations/active".to_owned();
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
@@ -459,7 +458,7 @@ impl<'a> LingyaConversationsApi<'a> {
 
     /// 查询未读会话 / List unread conversations
     ///
-    pub async fn list_unread_conversations(&self) -> Result<models::ConversationIds, LingyaError> {
+    pub async fn list_unread_conversations(&self) -> Result<models::ConversationIds, ApiError> {
         let suffix = "/conversations/unread".to_owned();
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
@@ -472,7 +471,7 @@ impl<'a> LingyaConversationsApi<'a> {
     pub async fn query_conversation_activities(
         &self,
         input: &models::ConversationActivityBatchInput,
-    ) -> Result<models::ConversationActivityList, LingyaError> {
+    ) -> Result<models::ConversationActivityList, ApiError> {
         let suffix = "/conversations/activity/query".to_owned();
         self.client
             .request_model_internal(
@@ -492,7 +491,7 @@ impl<'a> LingyaConversationsApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::ConversationReadReceiptInput,
-    ) -> Result<models::ConversationReadReceipt, LingyaError> {
+    ) -> Result<models::ConversationReadReceipt, ApiError> {
         let suffix = format!(
             "/conversations/{}/read-receipt",
             encode_path_segment(conversation_id)
@@ -509,7 +508,7 @@ impl<'a> LingyaConversationsApi<'a> {
 
     /// 读取会话统计 / Get conversation statistics
     ///
-    pub async fn get_conversation_stats(&self) -> Result<models::ConversationStats, LingyaError> {
+    pub async fn get_conversation_stats(&self) -> Result<models::ConversationStats, ApiError> {
         let suffix = "/conversations/stats".to_owned();
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
@@ -522,7 +521,7 @@ impl<'a> LingyaConversationsApi<'a> {
     pub async fn get_conversation_title(
         &self,
         conversation_id: &str,
-    ) -> Result<models::ConversationTitle, LingyaError> {
+    ) -> Result<models::ConversationTitle, ApiError> {
         let suffix = format!(
             "/conversations/{}/title",
             encode_path_segment(conversation_id)
@@ -540,7 +539,7 @@ impl<'a> LingyaConversationsApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::ConversationTitleInput,
-    ) -> Result<(), LingyaError> {
+    ) -> Result<(), ApiError> {
         let suffix = format!(
             "/conversations/{}/title",
             encode_path_segment(conversation_id)
@@ -563,7 +562,7 @@ impl<'a> LingyaConversationsApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::ConversationStatusInput,
-    ) -> Result<(), LingyaError> {
+    ) -> Result<(), ApiError> {
         let suffix = format!(
             "/conversations/{}/status",
             encode_path_segment(conversation_id)
@@ -584,7 +583,7 @@ impl<'a> LingyaConversationsApi<'a> {
     pub async fn list_conversation_shares(
         &self,
         conversation_id: &str,
-    ) -> Result<models::ConversationShareList, LingyaError> {
+    ) -> Result<models::ConversationShareList, ApiError> {
         let suffix = format!(
             "/conversations/{}/shares",
             encode_path_segment(conversation_id)
@@ -602,7 +601,7 @@ impl<'a> LingyaConversationsApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::ConversationShareInput,
-    ) -> Result<models::ConversationShareCreated, LingyaError> {
+    ) -> Result<models::ConversationShareCreated, ApiError> {
         let suffix = format!(
             "/conversations/{}/shares",
             encode_path_segment(conversation_id)
@@ -625,7 +624,7 @@ impl<'a> LingyaConversationsApi<'a> {
         &self,
         conversation_id: &str,
         share_id: i64,
-    ) -> Result<models::ConversationShareRevoked, LingyaError> {
+    ) -> Result<models::ConversationShareRevoked, ApiError> {
         let suffix = format!(
             "/conversations/{}/shares/{}",
             encode_path_segment(conversation_id),
@@ -638,12 +637,12 @@ impl<'a> LingyaConversationsApi<'a> {
 }
 
 /// sql 分组的 channel 绑定接口。 / Channel-bound sql operations.
-pub struct LingyaSqlApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct SqlApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaSqlApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> SqlApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -658,7 +657,7 @@ impl<'a> LingyaSqlApi<'a> {
         conversation_id: &str,
         result_id: &str,
         options: &GetSqlQueryResultOptions,
-    ) -> Result<models::SqlQueryResultPage, LingyaError> {
+    ) -> Result<models::SqlQueryResultPage, ApiError> {
         let suffix = format!(
             "/conversations/{}/sql-query-results/{}",
             encode_path_segment(conversation_id),
@@ -684,7 +683,7 @@ impl<'a> LingyaSqlApi<'a> {
         &self,
         conversation_id: &str,
         result_id: &str,
-    ) -> Result<models::SqlChartDataset, LingyaError> {
+    ) -> Result<models::SqlChartDataset, ApiError> {
         let suffix = format!(
             "/conversations/{}/sql-query-results/{}/chart-data",
             encode_path_segment(conversation_id),
@@ -706,7 +705,7 @@ impl<'a> LingyaSqlApi<'a> {
         conversation_id: &str,
         result_id: &str,
         options: &ExportSqlQueryResultOptions,
-    ) -> Result<Vec<u8>, LingyaError> {
+    ) -> Result<Vec<u8>, ApiError> {
         let suffix = format!(
             "/conversations/{}/sql-query-results/{}/export",
             encode_path_segment(conversation_id),
@@ -728,12 +727,12 @@ impl<'a> LingyaSqlApi<'a> {
 }
 
 /// messages 分组的 channel 绑定接口。 / Channel-bound messages operations.
-pub struct LingyaMessagesApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct MessagesApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaMessagesApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> MessagesApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -750,7 +749,7 @@ impl<'a> LingyaMessagesApi<'a> {
         &self,
         conversation_id: &str,
         options: &ListConversationMessagesOptions,
-    ) -> Result<models::ConversationMessagePage, LingyaError> {
+    ) -> Result<models::ConversationMessagePage, ApiError> {
         let suffix = format!(
             "/conversations/{}/messages",
             encode_path_segment(conversation_id)
@@ -787,7 +786,7 @@ impl<'a> LingyaMessagesApi<'a> {
         &self,
         conversation_id: &str,
         message_id: &str,
-    ) -> Result<models::ConversationMessage, LingyaError> {
+    ) -> Result<models::ConversationMessage, ApiError> {
         let suffix = format!(
             "/conversations/{}/messages/{}",
             encode_path_segment(conversation_id),
@@ -812,7 +811,7 @@ impl<'a> LingyaMessagesApi<'a> {
         &self,
         conversation_id: &str,
         options: &ListConversationAsyncTasksOptions,
-    ) -> Result<models::AsyncTaskPage, LingyaError> {
+    ) -> Result<models::AsyncTaskPage, ApiError> {
         let suffix = format!(
             "/conversations/{}/async-tasks",
             encode_path_segment(conversation_id)
@@ -852,7 +851,7 @@ impl<'a> LingyaMessagesApi<'a> {
         &self,
         conversation_id: &str,
         async_task_id: &str,
-    ) -> Result<models::AsyncTask, LingyaError> {
+    ) -> Result<models::AsyncTask, ApiError> {
         let suffix = format!(
             "/conversations/{}/async-tasks/{}",
             encode_path_segment(conversation_id),
@@ -871,7 +870,7 @@ impl<'a> LingyaMessagesApi<'a> {
         &self,
         conversation_id: &str,
         message_id: &str,
-    ) -> Result<models::ConversationMessage, LingyaError> {
+    ) -> Result<models::ConversationMessage, ApiError> {
         let suffix = format!(
             "/conversations/{}/messages/{}/queue",
             encode_path_segment(conversation_id),
@@ -884,12 +883,12 @@ impl<'a> LingyaMessagesApi<'a> {
 }
 
 /// events 分组的 channel 绑定接口。 / Channel-bound events operations.
-pub struct LingyaEventsApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct EventsApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaEventsApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> EventsApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -900,7 +899,7 @@ impl<'a> LingyaEventsApi<'a> {
     pub async fn get_chat_events(
         &self,
         options: &GetChatEventsOptions,
-    ) -> Result<models::AiChatBriefEventList, LingyaError> {
+    ) -> Result<models::AiChatBriefEventList, ApiError> {
         let suffix = "/events".to_owned();
         let mut query = Vec::new();
         query.push(QueryParameter::new(
@@ -922,7 +921,7 @@ impl<'a> LingyaEventsApi<'a> {
     pub async fn get_chat_events_batch(
         &self,
         input: &models::AiChatEventsBatchInput,
-    ) -> Result<models::AiChatEventsBatch, LingyaError> {
+    ) -> Result<models::AiChatEventsBatch, ApiError> {
         let suffix = "/events/batch".to_owned();
         self.client
             .request_model_internal(
@@ -936,12 +935,12 @@ impl<'a> LingyaEventsApi<'a> {
 }
 
 /// interactions 分组的 channel 绑定接口。 / Channel-bound interactions operations.
-pub struct LingyaInteractionsApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct InteractionsApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaInteractionsApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> InteractionsApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -951,7 +950,7 @@ impl<'a> LingyaInteractionsApi<'a> {
     pub async fn approve_plan(
         &self,
         input: &models::PlanApprovalInput,
-    ) -> Result<models::OperationResult, LingyaError> {
+    ) -> Result<models::OperationResult, ApiError> {
         let suffix = "/plan/approve".to_owned();
         self.client
             .request_model_internal(
@@ -966,7 +965,7 @@ impl<'a> LingyaInteractionsApi<'a> {
     /// 查询计划审批状态 / Get plan approval status
     ///
     /// * `plan_id` - 等待审批的计划 ID。 / Pending plan-approval ID.
-    pub async fn get_plan_status(&self, plan_id: &str) -> Result<models::PlanStatus, LingyaError> {
+    pub async fn get_plan_status(&self, plan_id: &str) -> Result<models::PlanStatus, ApiError> {
         let suffix = format!("/plan/{}/status", encode_path_segment(plan_id));
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
@@ -982,7 +981,7 @@ impl<'a> LingyaInteractionsApi<'a> {
         &self,
         question_id: &str,
         options: &GetUserInputStatusOptions,
-    ) -> Result<models::UserInputStatus, LingyaError> {
+    ) -> Result<models::UserInputStatus, ApiError> {
         let suffix = format!("/user-input/{}/status", encode_path_segment(question_id));
         let mut query = Vec::new();
         query.push(QueryParameter::new(
@@ -1004,7 +1003,7 @@ impl<'a> LingyaInteractionsApi<'a> {
     pub async fn answer_user_input(
         &self,
         input: &models::UserInputAnswerInput,
-    ) -> Result<models::OperationResult, LingyaError> {
+    ) -> Result<models::OperationResult, ApiError> {
         let suffix = "/user-input/answer".to_owned();
         self.client
             .request_model_internal(
@@ -1018,12 +1017,12 @@ impl<'a> LingyaInteractionsApi<'a> {
 }
 
 /// files 分组的 channel 绑定接口。 / Channel-bound files operations.
-pub struct LingyaFilesApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct FilesApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaFilesApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> FilesApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -1033,7 +1032,7 @@ impl<'a> LingyaFilesApi<'a> {
     pub async fn create_pre_signed_upload(
         &self,
         input: &models::GeneratePreSignedUrlInput,
-    ) -> Result<models::GeneratePreSignedUrlOutput, LingyaError> {
+    ) -> Result<models::GeneratePreSignedUrlOutput, ApiError> {
         let suffix = "/files/pre-signed-url/write".to_owned();
         self.client
             .request_model_internal(
@@ -1051,7 +1050,7 @@ impl<'a> LingyaFilesApi<'a> {
     pub async fn confirm_pre_signed_upload(
         &self,
         input: &models::ConfirmUploadInput,
-    ) -> Result<models::AgentFile, LingyaError> {
+    ) -> Result<models::AgentFile, ApiError> {
         let suffix = "/files/pre-signed-url/confirm".to_owned();
         self.client
             .request_model_internal(
@@ -1069,7 +1068,7 @@ impl<'a> LingyaFilesApi<'a> {
     pub async fn create_file_by_content_md5(
         &self,
         input: &models::CreateFileInput,
-    ) -> Result<models::AgentFile, LingyaError> {
+    ) -> Result<models::AgentFile, ApiError> {
         let suffix = "/files/contentMd5".to_owned();
         self.client
             .request_model_internal(
@@ -1087,7 +1086,7 @@ impl<'a> LingyaFilesApi<'a> {
     pub async fn file_exists_by_content_md5(
         &self,
         options: &FileExistsByContentMd5Options,
-    ) -> Result<models::FileExists, LingyaError> {
+    ) -> Result<models::FileExists, ApiError> {
         let suffix = "/files/meta/contentMd5".to_owned();
         let mut query = Vec::new();
         query.push(QueryParameter::new(
@@ -1107,7 +1106,7 @@ impl<'a> LingyaFilesApi<'a> {
         &self,
         conversation_id: &str,
         file_id: i64,
-    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+    ) -> Result<models::PreSignedReadUrl, ApiError> {
         let suffix = format!(
             "/conversations/{}/files/{}/preview",
             encode_path_segment(conversation_id),
@@ -1128,7 +1127,7 @@ impl<'a> LingyaFilesApi<'a> {
         conversation_id: &str,
         message_id: &str,
         file_id: i64,
-    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+    ) -> Result<models::PreSignedReadUrl, ApiError> {
         let suffix = format!(
             "/conversations/{}/messages/{}/plan-intermediate-files/{}/preview",
             encode_path_segment(conversation_id),
@@ -1142,12 +1141,12 @@ impl<'a> LingyaFilesApi<'a> {
 }
 
 /// knowledge 分组的 channel 绑定接口。 / Channel-bound knowledge operations.
-pub struct LingyaKnowledgeApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct KnowledgeApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaKnowledgeApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> KnowledgeApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -1157,7 +1156,7 @@ impl<'a> LingyaKnowledgeApi<'a> {
     pub async fn get_citation_metadata_batch(
         &self,
         input: &[models::ReturnedReference],
-    ) -> Result<models::CitationMetadataList, LingyaError> {
+    ) -> Result<models::CitationMetadataList, ApiError> {
         let suffix = "/knowledge-bases/citations/metadata".to_owned();
         self.client
             .request_model_internal(
@@ -1177,7 +1176,7 @@ impl<'a> LingyaKnowledgeApi<'a> {
         &self,
         citation_type: &str,
         reference_id: i64,
-    ) -> Result<models::CitationMetadata, LingyaError> {
+    ) -> Result<models::CitationMetadata, ApiError> {
         let suffix = format!(
             "/knowledge-bases/citations/{}/{}/metadata",
             encode_path_segment(citation_type),
@@ -1190,12 +1189,12 @@ impl<'a> LingyaKnowledgeApi<'a> {
 }
 
 /// workspace 分组的 channel 绑定接口。 / Channel-bound workspace operations.
-pub struct LingyaWorkspaceApi<'a> {
-    client: &'a LingyaAgentsUserClient,
+pub struct WorkspaceApi<'a> {
+    client: &'a AgentsUserClient,
 }
 
-impl<'a> LingyaWorkspaceApi<'a> {
-    pub(crate) fn new(client: &'a LingyaAgentsUserClient) -> Self {
+impl<'a> WorkspaceApi<'a> {
+    pub(crate) fn new(client: &'a AgentsUserClient) -> Self {
         Self { client }
     }
 
@@ -1213,7 +1212,7 @@ impl<'a> LingyaWorkspaceApi<'a> {
         &self,
         conversation_id: &str,
         options: &ListWorkspaceArtifactsOptions,
-    ) -> Result<models::WorkspaceArtifactList, LingyaError> {
+    ) -> Result<models::WorkspaceArtifactList, ApiError> {
         let suffix = format!(
             "/conversations/{}/workspace/files",
             encode_path_segment(conversation_id)
@@ -1253,7 +1252,7 @@ impl<'a> LingyaWorkspaceApi<'a> {
         &self,
         conversation_id: &str,
         options: &GetWorkspaceFilePreviewOptions,
-    ) -> Result<models::PreSignedReadUrl, LingyaError> {
+    ) -> Result<models::PreSignedReadUrl, ApiError> {
         let suffix = format!(
             "/conversations/{}/workspace/files/preview",
             encode_path_segment(conversation_id)
