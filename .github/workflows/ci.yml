@@ -12,10 +12,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           path: lingya-agents-sdk-rust
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: lingya-ai/lingya-agents-openapi
           ref: v0.1.4
