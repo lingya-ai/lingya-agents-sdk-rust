@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       contract_tag:
-        description: Contract tag such as v0.1.3
+        description: Contract tag such as v0.1.4
         required: true
 
 permissions:
@@ -29,6 +29,8 @@ jobs:
         run: |
           gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern lingya-agents-v1.yaml --output openapi/lingya-agents-v1.yaml --clobber
           gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern endpoints.json --output openapi/endpoints.json --clobber
+          mkdir -p ../lingya-agents-openapi/test-vectors
+          gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern hmac-v1.json --output ../lingya-agents-openapi/test-vectors/hmac-v1.json --clobber
           printf 'lingya-ai/lingya-agents-openapi@%s\n' "$CONTRACT_TAG" > CONTRACT_VERSION
       - run: python3 scripts/generate_bound_api.py && cargo test --all-targets
       - uses: peter-evans/create-pull-request@v7
