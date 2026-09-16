@@ -12,7 +12,7 @@ categories = ["api-bindings", "web-programming::http-client"]
 
 [dependencies]
 async-stream = "0.3"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
 getrandom = "0.3"
