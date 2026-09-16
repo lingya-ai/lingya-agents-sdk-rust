@@ -13,18 +13,31 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: lingya-agents-sdk-rust
+      - uses: actions/checkout@v5
+        with:
+          repository: lingya-ai/lingya-agents-openapi
+          ref: v0.1.3
+          path: lingya-agents-openapi
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: lingya-agents-sdk-rust
       - name: Verify release tag
         run: test "${GITHUB_REF_NAME#v}" = "$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
+        working-directory: lingya-agents-sdk-rust
       - run: python3 scripts/generate_bound_api.py && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test --all-targets && cargo package --locked
+        working-directory: lingya-agents-sdk-rust
       - name: Publish to crates.io
         run: cargo publish --locked
+        working-directory: lingya-agents-sdk-rust
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+        working-directory: lingya-agents-sdk-rust
