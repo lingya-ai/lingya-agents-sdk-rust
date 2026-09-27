@@ -11,26 +11,50 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// ChartTimeContext : ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+/// SubagentTaskResult : SubagentTaskResult 的公开协议结构。 / Public contract for subagent task result.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ChartTimeContext {
-    /// 字段 asOfInstant / as of instant field。
-    #[serde(rename = "asOfInstant")]
-    pub as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-    /// 字段 tenantZoneId / tenant zone id field。
-    #[serde(rename = "tenantZoneId")]
-    pub tenant_zone_id: String,
+pub struct SubagentTaskResult {
+    /// 字段 task / task field。
+    #[serde(rename = "task")]
+    pub task: Box<models::SubagentTask>,
+    /// 字段 resultText / result text field。
+    #[serde(
+        rename = "resultText",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub result_text: Option<Option<String>>,
+    /// 字段 artifacts / artifacts field。
+    #[serde(rename = "artifacts")]
+    pub artifacts: Vec<models::SubagentTaskArtifact>,
+    /// 输入 Token 数 / input token count。
+    #[serde(rename = "inputTokens")]
+    pub input_tokens: i64,
+    /// 输出 Token 数 / output token count。
+    #[serde(rename = "outputTokens")]
+    pub output_tokens: i64,
+    /// 字段 nonFileArtifacts / non file artifacts field。
+    #[serde(rename = "nonFileArtifacts")]
+    pub non_file_artifacts: Vec<models::WorkspaceNonFileArtifact>,
 }
 
-impl ChartTimeContext {
-    /// ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+impl SubagentTaskResult {
+    /// SubagentTaskResult 的公开协议结构。 / Public contract for subagent task result.
     pub fn new(
-        as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-        tenant_zone_id: String,
-    ) -> ChartTimeContext {
-        ChartTimeContext {
-            as_of_instant,
-            tenant_zone_id,
+        task: models::SubagentTask,
+        artifacts: Vec<models::SubagentTaskArtifact>,
+        input_tokens: i64,
+        output_tokens: i64,
+        non_file_artifacts: Vec<models::WorkspaceNonFileArtifact>,
+    ) -> SubagentTaskResult {
+        SubagentTaskResult {
+            task: Box::new(task),
+            result_text: None,
+            artifacts,
+            input_tokens,
+            output_tokens,
+            non_file_artifacts,
         }
     }
 }

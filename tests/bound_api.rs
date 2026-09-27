@@ -32,8 +32,8 @@ fn every_contract_operation_has_one_bound_method_without_channel_id() {
         .map(|capture| capture[1].to_owned())
         .collect();
 
-    assert_eq!(manifest.len(), 46);
-    assert_eq!(methods.len(), 46);
+    assert_eq!(manifest.len(), 52);
+    assert_eq!(methods.len(), 52);
     for operation in manifest {
         assert!(methods.contains(&camel_to_snake(&operation.operation_id)));
     }

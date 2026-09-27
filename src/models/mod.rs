@@ -6,6 +6,8 @@
 
 pub mod agent_file;
 pub use self::agent_file::AgentFile;
+pub mod agent_async_task_sync;
+pub use self::agent_async_task_sync::AgentAsyncTaskSync;
 pub mod agents_config;
 pub use self::agents_config::AgentsConfig;
 pub mod ai_chat_awaiting_input_brief_event;
@@ -250,6 +252,16 @@ pub mod sql_result_column_schema;
 pub use self::sql_result_column_schema::SqlResultColumnSchema;
 pub mod string_chart_column;
 pub use self::string_chart_column::StringChartColumn;
+pub mod subagent_task;
+pub use self::subagent_task::SubagentTask;
+pub mod subagent_task_artifact;
+pub use self::subagent_task_artifact::SubagentTaskArtifact;
+pub mod subagent_task_page;
+pub use self::subagent_task_page::SubagentTaskPage;
+pub mod subagent_task_result;
+pub use self::subagent_task_result::SubagentTaskResult;
+pub mod subagent_task_sync;
+pub use self::subagent_task_sync::SubagentTaskSync;
 pub mod system_chat_message;
 pub use self::system_chat_message::SystemChatMessage;
 pub mod task_progress_extension_content;

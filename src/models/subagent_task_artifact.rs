@@ -11,21 +11,31 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// ArtifactInfo : ArtifactInfo 的公开协议结构。 / Public contract for artifact info.
+/// SubagentTaskArtifact : SubagentTaskArtifact 的公开协议结构。 / Public contract for subagent task artifact.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ArtifactInfo {
-    /// 文件 ID / file ID。
-    #[serde(rename = "fileId")]
-    pub file_id: i64,
-    /// 字段 fileSize / file size field。
-    #[serde(rename = "fileSize")]
-    pub file_size: i64,
-    /// 文件名 / file name。
-    #[serde(rename = "fileName")]
-    pub file_name: String,
+pub struct SubagentTaskArtifact {
+    /// 字段 artifactId / artifact id field。
+    #[serde(rename = "artifactId")]
+    pub artifact_id: String,
+    /// 字段 name / name field。
+    #[serde(rename = "name")]
+    pub name: String,
     /// MIME 类型 / MIME type。
-    #[serde(rename = "mimeType")]
-    pub mime_type: String,
+    #[serde(
+        rename = "mimeType",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub mime_type: Option<Option<String>>,
+    /// 大小（字节）或分页容量 / byte size or page size。
+    #[serde(
+        rename = "size",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub size: Option<Option<i64>>,
     /// 字段 relativePath / relative path field。
     #[serde(
         rename = "relativePath",
@@ -36,7 +46,7 @@ pub struct ArtifactInfo {
     pub relative_path: Option<Option<String>>,
     /// 字段 deliveryStatus / delivery status field。
     #[serde(rename = "deliveryStatus")]
-    pub delivery_status: String,
+    pub delivery_status: DeliveryStatus,
     /// 字段 issueCodes / issue codes field。
     #[serde(rename = "issueCodes")]
     pub issue_codes: Vec<String>,
@@ -45,26 +55,44 @@ pub struct ArtifactInfo {
     pub recoverable: bool,
 }
 
-impl ArtifactInfo {
-    /// ArtifactInfo 的公开协议结构。 / Public contract for artifact info.
+impl SubagentTaskArtifact {
+    /// SubagentTaskArtifact 的公开协议结构。 / Public contract for subagent task artifact.
     pub fn new(
-        file_id: i64,
-        file_size: i64,
-        file_name: String,
-        mime_type: String,
-        delivery_status: String,
+        artifact_id: String,
+        name: String,
+        delivery_status: DeliveryStatus,
         issue_codes: Vec<String>,
         recoverable: bool,
-    ) -> ArtifactInfo {
-        ArtifactInfo {
-            file_id,
-            file_size,
-            file_name,
-            mime_type,
+    ) -> SubagentTaskArtifact {
+        SubagentTaskArtifact {
+            artifact_id,
+            name,
+            mime_type: None,
+            size: None,
             relative_path: None,
             delivery_status,
             issue_codes,
             recoverable,
         }
+    }
+}
+/// 字段 deliveryStatus / delivery status field。
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub enum DeliveryStatus {
+    #[serde(rename = "NOT_APPLICABLE")]
+    NotApplicable,
+    #[serde(rename = "UNVALIDATED")]
+    Unvalidated,
+    #[serde(rename = "ACCEPTED")]
+    Accepted,
+    #[serde(rename = "ACCEPTED_WITH_WARNINGS")]
+    AcceptedWithWarnings,
+    #[serde(rename = "BLOCKED")]
+    Blocked,
+}
+
+impl Default for DeliveryStatus {
+    fn default() -> DeliveryStatus {
+        Self::NotApplicable
     }
 }

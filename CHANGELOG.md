@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 - 2026-09-27
+
+- 同步 OpenAPI 契约 v0.1.5，新增异步任务同步及子 Agent 查询、结果和取消接口。
+- 更新公开 API 封装与生成模型，使其匹配当前契约结构。
+
 ## 0.4.0
 
 - Export `AgentsClient`, `AgentsUserClient`, `ApiError`, unprefixed event types, and unprefixed group facades.

@@ -11,26 +11,23 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// ChartTimeContext : ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+/// SubagentTaskPage : SubagentTaskPage 的公开协议结构。 / Public contract for subagent task page.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ChartTimeContext {
-    /// 字段 asOfInstant / as of instant field。
-    #[serde(rename = "asOfInstant")]
-    pub as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-    /// 字段 tenantZoneId / tenant zone id field。
-    #[serde(rename = "tenantZoneId")]
-    pub tenant_zone_id: String,
+pub struct SubagentTaskPage {
+    /// 记录列表 / records。
+    #[serde(rename = "records")]
+    pub records: Vec<models::SubagentTask>,
+    /// 分页信息 / page metadata。
+    #[serde(rename = "page")]
+    pub page: Box<models::PageInfo>,
 }
 
-impl ChartTimeContext {
-    /// ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
-    pub fn new(
-        as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-        tenant_zone_id: String,
-    ) -> ChartTimeContext {
-        ChartTimeContext {
-            as_of_instant,
-            tenant_zone_id,
+impl SubagentTaskPage {
+    /// SubagentTaskPage 的公开协议结构。 / Public contract for subagent task page.
+    pub fn new(records: Vec<models::SubagentTask>, page: models::PageInfo) -> SubagentTaskPage {
+        SubagentTaskPage {
+            records,
+            page: Box::new(page),
         }
     }
 }

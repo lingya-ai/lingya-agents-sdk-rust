@@ -169,6 +169,43 @@ pub struct ListConversationAsyncTasksOptions {
     pub status: Option<Vec<String>>,
 }
 
+/// 增量同步异步任务 / Sync asynchronous task updates 的查询参数和请求头。 / Query values and headers for `sync_conversation_async_tasks`.
+#[derive(Clone, Debug, Default)]
+pub struct SyncConversationAsyncTasksOptions {
+    /// 通知消息同步游标。 / Notification-message sync cursor.
+    pub after_message_id: Option<String>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+}
+
+/// 分页查询子 Agent 任务 / List subagent tasks 的查询参数和请求头。 / Query values and headers for `list_conversation_subagents`.
+#[derive(Clone, Debug, Default)]
+pub struct ListConversationSubagentsOptions {
+    /// 从 0 开始的页码。 / Zero-based page index.
+    pub current: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+    /// 排序字段列表。 / Ordered list of sort fields.
+    pub order_by: Option<Vec<String>>,
+    /// 排序方向。 / Sort direction.
+    pub order_direction: Option<SortDirection>,
+    /// 空值排序策略。 / Null ordering strategy.
+    pub order_null_handling: Option<NullOrdering>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+    /// 状态过滤条件。 / Status filter.
+    pub status: Option<Vec<String>>,
+}
+
+/// 增量同步子 Agent 状态 / Sync subagent task updates 的查询参数和请求头。 / Query values and headers for `sync_conversation_subagents`.
+#[derive(Clone, Debug, Default)]
+pub struct SyncConversationSubagentsOptions {
+    /// 子 Agent 状态同步游标。 / Subagent-state sync cursor.
+    pub cursor: Option<String>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+}
+
 /// 读取消息事件 / Get message events 的查询参数和请求头。 / Query values and headers for `get_chat_events`.
 #[derive(Clone, Debug)]
 pub struct GetChatEventsOptions {
@@ -843,6 +880,32 @@ impl<'a> MessagesApi<'a> {
             .await
     }
 
+    /// 增量同步异步任务 / Sync asynchronous task updates
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `after_message_id` - 通知消息同步游标。 / Notification-message sync cursor.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    pub async fn sync_conversation_async_tasks(
+        &self,
+        conversation_id: &str,
+        options: &SyncConversationAsyncTasksOptions,
+    ) -> Result<models::AgentAsyncTaskSync, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/async-tasks/sync",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.after_message_id {
+            query.push(QueryParameter::new("afterMessageId", value.as_str()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
     /// 读取异步任务 / Get an asynchronous task
     ///
     /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
@@ -856,6 +919,135 @@ impl<'a> MessagesApi<'a> {
             "/conversations/{}/async-tasks/{}",
             encode_path_segment(conversation_id),
             encode_path_segment(async_task_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 分页查询子 Agent 任务 / List subagent tasks
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `current` - 从 0 开始的页码。 / Zero-based page index.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
+    /// * `order_direction` - 排序方向。 / Sort direction.
+    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    /// * `status` - 状态过滤条件。 / Status filter.
+    pub async fn list_conversation_subagents(
+        &self,
+        conversation_id: &str,
+        options: &ListConversationSubagentsOptions,
+    ) -> Result<models::SubagentTaskPage, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/subagents",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.current {
+            query.push(QueryParameter::new("current", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        for value in options.order_by.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("orderBy", value));
+        }
+        if let Some(value) = &options.order_direction {
+            query.push(QueryParameter::new("orderDirection", value.as_str()));
+        }
+        if let Some(value) = &options.order_null_handling {
+            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        }
+        if let Some(value) = &options.keyword {
+            query.push(QueryParameter::new("keyword", value.as_str()));
+        }
+        for value in options.status.as_deref().unwrap_or(&[]) {
+            query.push(QueryParameter::new("status", value));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 增量同步子 Agent 状态 / Sync subagent task updates
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `cursor` - 子 Agent 状态同步游标。 / Subagent-state sync cursor.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    pub async fn sync_conversation_subagents(
+        &self,
+        conversation_id: &str,
+        options: &SyncConversationSubagentsOptions,
+    ) -> Result<models::SubagentTaskSync, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/subagents/sync",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.cursor {
+            query.push(QueryParameter::new("cursor", value.as_str()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 读取子 Agent 状态 / Get a subagent task
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `subagent_task_id` - 子 Agent 任务 ID。 / Subagent task ID.
+    pub async fn get_conversation_subagent(
+        &self,
+        conversation_id: &str,
+        subagent_task_id: &str,
+    ) -> Result<models::SubagentTask, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/subagents/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(subagent_task_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 取消子 Agent 任务 / Cancel a subagent task
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `subagent_task_id` - 子 Agent 任务 ID。 / Subagent task ID.
+    pub async fn cancel_conversation_subagent(
+        &self,
+        conversation_id: &str,
+        subagent_task_id: &str,
+    ) -> Result<models::SubagentTask, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/subagents/{}",
+            encode_path_segment(conversation_id),
+            encode_path_segment(subagent_task_id)
+        );
+        self.client
+            .request_model_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+
+    /// 读取子 Agent 结果 / Get a subagent result
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `subagent_task_id` - 子 Agent 任务 ID。 / Subagent task ID.
+    pub async fn get_conversation_subagent_result(
+        &self,
+        conversation_id: &str,
+        subagent_task_id: &str,
+    ) -> Result<models::SubagentTaskResult, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/subagents/{}/result",
+            encode_path_segment(conversation_id),
+            encode_path_segment(subagent_task_id)
         );
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])

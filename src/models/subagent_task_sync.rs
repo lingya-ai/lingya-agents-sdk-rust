@@ -11,26 +11,41 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// ChartTimeContext : ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+/// SubagentTaskSync : SubagentTaskSync 的公开协议结构。 / Public contract for subagent task sync.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ChartTimeContext {
-    /// 字段 asOfInstant / as of instant field。
-    #[serde(rename = "asOfInstant")]
-    pub as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-    /// 字段 tenantZoneId / tenant zone id field。
-    #[serde(rename = "tenantZoneId")]
-    pub tenant_zone_id: String,
+pub struct SubagentTaskSync {
+    /// 字段 activeTasks / active tasks field。
+    #[serde(rename = "activeTasks")]
+    pub active_tasks: Vec<models::SubagentTask>,
+    /// 字段 changedTasks / changed tasks field。
+    #[serde(rename = "changedTasks")]
+    pub changed_tasks: Vec<models::SubagentTask>,
+    /// 字段 nextCursor / next cursor field。
+    #[serde(rename = "nextCursor", deserialize_with = "Option::deserialize")]
+    pub next_cursor: Option<String>,
+    /// 字段 pollingRequired / polling required field。
+    #[serde(rename = "pollingRequired")]
+    pub polling_required: bool,
+    /// 字段 hasUnreadTerminalResults / has unread terminal results field。
+    #[serde(rename = "hasUnreadTerminalResults")]
+    pub has_unread_terminal_results: bool,
 }
 
-impl ChartTimeContext {
-    /// ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+impl SubagentTaskSync {
+    /// SubagentTaskSync 的公开协议结构。 / Public contract for subagent task sync.
     pub fn new(
-        as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-        tenant_zone_id: String,
-    ) -> ChartTimeContext {
-        ChartTimeContext {
-            as_of_instant,
-            tenant_zone_id,
+        active_tasks: Vec<models::SubagentTask>,
+        changed_tasks: Vec<models::SubagentTask>,
+        next_cursor: Option<String>,
+        polling_required: bool,
+        has_unread_terminal_results: bool,
+    ) -> SubagentTaskSync {
+        SubagentTaskSync {
+            active_tasks,
+            changed_tasks,
+            next_cursor,
+            polling_required,
+            has_unread_terminal_results,
         }
     }
 }

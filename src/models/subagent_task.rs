@@ -11,29 +11,21 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// AsyncTask : AsyncTask 的公开协议结构。 / Public contract for async task.
+/// SubagentTask : SubagentTask 的公开协议结构。 / Public contract for subagent task.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AsyncTask {
+pub struct SubagentTask {
     /// 异步任务 ID / asynchronous task ID。
     #[serde(rename = "taskId")]
     pub task_id: String,
-    /// 字段 taskType / task type field。
-    #[serde(rename = "taskType")]
-    pub task_type: String,
-    /// 标题 / title。
-    #[serde(rename = "title")]
-    pub title: String,
+    /// 可读说明 / human-readable description。
+    #[serde(rename = "description")]
+    pub description: String,
+    /// 字段 subagentType / subagent type field。
+    #[serde(rename = "subagentType")]
+    pub subagent_type: String,
     /// 当前状态 / current status。
     #[serde(rename = "status")]
     pub status: String,
-    /// 字段 progressPercent / progress percent field。
-    #[serde(
-        rename = "progressPercent",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub progress_percent: Option<Option<i32>>,
     /// 字段 phase / phase field。
     #[serde(
         rename = "phase",
@@ -42,20 +34,45 @@ pub struct AsyncTask {
         skip_serializing_if = "Option::is_none"
     )]
     pub phase: Option<Option<String>>,
-    /// 字段 statusMessage / status message field。
+    /// 字段 progressPercent / progress percent field。
     #[serde(
-        rename = "statusMessage",
+        rename = "progressPercent",
         default,
         with = "::serde_with::rust::double_option",
         skip_serializing_if = "Option::is_none"
     )]
-    pub status_message: Option<Option<String>>,
+    pub progress_percent: Option<Option<i32>>,
+    /// 字段 parentConversationId / parent conversation id field。
+    #[serde(rename = "parentConversationId")]
+    pub parent_conversation_id: String,
+    /// 字段 parentMessageId / parent message id field。
+    #[serde(rename = "parentMessageId")]
+    pub parent_message_id: String,
+    /// 字段 childConversationId / child conversation id field。
+    #[serde(
+        rename = "childConversationId",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub child_conversation_id: Option<Option<String>>,
+    /// 字段 childMessageId / child message id field。
+    #[serde(
+        rename = "childMessageId",
+        default,
+        with = "::serde_with::rust::double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub child_message_id: Option<Option<String>>,
     /// 字段 resultAvailable / result available field。
     #[serde(rename = "resultAvailable")]
     pub result_available: bool,
-    /// 字段 cancellable / cancellable field。
-    #[serde(rename = "cancellable")]
-    pub cancellable: bool,
+    /// 字段 artifactCount / artifact count field。
+    #[serde(rename = "artifactCount")]
+    pub artifact_count: i32,
+    /// 字段 notificationStatus / notification status field。
+    #[serde(rename = "notificationStatus")]
+    pub notification_status: String,
     /// 字段 failureCode / failure code field。
     #[serde(
         rename = "failureCode",
@@ -72,32 +89,6 @@ pub struct AsyncTask {
         skip_serializing_if = "Option::is_none"
     )]
     pub failure_message: Option<Option<String>>,
-    /// 字段 originConversationId / origin conversation id field。
-    #[serde(rename = "originConversationId")]
-    pub origin_conversation_id: String,
-    /// 字段 originMessageId / origin message id field。
-    #[serde(rename = "originMessageId")]
-    pub origin_message_id: String,
-    /// 字段 originToolId / origin tool id field。
-    #[serde(rename = "originToolId")]
-    pub origin_tool_id: String,
-    /// 字段 originToolName / origin tool name field。
-    #[serde(rename = "originToolName")]
-    pub origin_tool_name: String,
-    /// 字段 targetMessageId / target message id field。
-    #[serde(rename = "targetMessageId")]
-    pub target_message_id: String,
-    /// 字段 notificationStatus / notification status field。
-    #[serde(rename = "notificationStatus")]
-    pub notification_status: String,
-    /// 字段 notificationMessageId / notification message id field。
-    #[serde(
-        rename = "notificationMessageId",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub notification_message_id: Option<Option<String>>,
     /// 创建时间 / creation time。
     #[serde(rename = "createdTime")]
     pub created_time: chrono::DateTime<chrono::FixedOffset>,
@@ -120,72 +111,48 @@ pub struct AsyncTask {
     /// 最后更新时间 / last update time。
     #[serde(rename = "lastUpdateTime")]
     pub last_update_time: chrono::DateTime<chrono::FixedOffset>,
-    /// 字段 trackingStatus / tracking status field。
-    #[serde(rename = "trackingStatus")]
-    pub tracking_status: String,
-    /// 字段 trackingFailureCode / tracking failure code field。
-    #[serde(
-        rename = "trackingFailureCode",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub tracking_failure_code: Option<Option<String>>,
-    /// 字段 lastPollError / last poll error field。
-    #[serde(
-        rename = "lastPollError",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub last_poll_error: Option<Option<String>>,
+    /// 字段 cancellable / cancellable field。
+    #[serde(rename = "cancellable")]
+    pub cancellable: bool,
 }
 
-impl AsyncTask {
-    /// AsyncTask 的公开协议结构。 / Public contract for async task.
+impl SubagentTask {
+    /// SubagentTask 的公开协议结构。 / Public contract for subagent task.
     pub fn new(
         task_id: String,
-        task_type: String,
-        title: String,
+        description: String,
+        subagent_type: String,
         status: String,
+        parent_conversation_id: String,
+        parent_message_id: String,
         result_available: bool,
-        cancellable: bool,
-        origin_conversation_id: String,
-        origin_message_id: String,
-        origin_tool_id: String,
-        origin_tool_name: String,
-        target_message_id: String,
+        artifact_count: i32,
         notification_status: String,
         created_time: chrono::DateTime<chrono::FixedOffset>,
         last_update_time: chrono::DateTime<chrono::FixedOffset>,
-        tracking_status: String,
-    ) -> AsyncTask {
-        AsyncTask {
+        cancellable: bool,
+    ) -> SubagentTask {
+        SubagentTask {
             task_id,
-            task_type,
-            title,
+            description,
+            subagent_type,
             status,
-            progress_percent: None,
             phase: None,
-            status_message: None,
+            progress_percent: None,
+            parent_conversation_id,
+            parent_message_id,
+            child_conversation_id: None,
+            child_message_id: None,
             result_available,
-            cancellable,
+            artifact_count,
+            notification_status,
             failure_code: None,
             failure_message: None,
-            origin_conversation_id,
-            origin_message_id,
-            origin_tool_id,
-            origin_tool_name,
-            target_message_id,
-            notification_status,
-            notification_message_id: None,
             created_time,
             started_time: None,
             completed_time: None,
             last_update_time,
-            tracking_status,
-            tracking_failure_code: None,
-            last_poll_error: None,
+            cancellable,
         }
     }
 }

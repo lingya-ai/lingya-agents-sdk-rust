@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       contract_tag:
-        description: Contract tag such as v0.1.4
+        description: Contract tag such as v0.1.5
         required: true
 
 permissions:

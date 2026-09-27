@@ -11,26 +11,41 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
 
-/// ChartTimeContext : ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+/// AgentAsyncTaskSync : AgentAsyncTaskSync 的公开协议结构。 / Public contract for agent async task sync.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ChartTimeContext {
-    /// 字段 asOfInstant / as of instant field。
-    #[serde(rename = "asOfInstant")]
-    pub as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-    /// 字段 tenantZoneId / tenant zone id field。
-    #[serde(rename = "tenantZoneId")]
-    pub tenant_zone_id: String,
+pub struct AgentAsyncTaskSync {
+    /// 字段 activeTasks / active tasks field。
+    #[serde(rename = "activeTasks")]
+    pub active_tasks: Vec<models::AsyncTask>,
+    /// 字段 notificationMessages / notification messages field。
+    #[serde(rename = "notificationMessages")]
+    pub notification_messages: Vec<models::ConversationMessage>,
+    /// 字段 nextMessageId / next message id field。
+    #[serde(rename = "nextMessageId", deserialize_with = "Option::deserialize")]
+    pub next_message_id: Option<String>,
+    /// 字段 hasMore / has more field。
+    #[serde(rename = "hasMore")]
+    pub has_more: bool,
+    /// 字段 pollingRequired / polling required field。
+    #[serde(rename = "pollingRequired")]
+    pub polling_required: bool,
 }
 
-impl ChartTimeContext {
-    /// ChartTimeContext 的公开协议结构。 / Public contract for chart time context.
+impl AgentAsyncTaskSync {
+    /// AgentAsyncTaskSync 的公开协议结构。 / Public contract for agent async task sync.
     pub fn new(
-        as_of_instant: chrono::DateTime<chrono::FixedOffset>,
-        tenant_zone_id: String,
-    ) -> ChartTimeContext {
-        ChartTimeContext {
-            as_of_instant,
-            tenant_zone_id,
+        active_tasks: Vec<models::AsyncTask>,
+        notification_messages: Vec<models::ConversationMessage>,
+        next_message_id: Option<String>,
+        has_more: bool,
+        polling_required: bool,
+    ) -> AgentAsyncTaskSync {
+        AgentAsyncTaskSync {
+            active_tasks,
+            notification_messages,
+            next_message_id,
+            has_more,
+            polling_required,
         }
     }
 }

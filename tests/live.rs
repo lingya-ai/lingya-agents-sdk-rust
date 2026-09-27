@@ -15,9 +15,10 @@ use lingya_agents_sdk::{
     AgentsClient, AgentsUserClient, ApiError, CompactConversationOptions,
     ExportSqlQueryResultOptions, FileExistsByContentMd5Options, GetChatEventsOptions,
     GetSqlQueryResultOptions, GetUserInputStatusOptions, GetWorkspaceFilePreviewOptions,
-    ListConversationAsyncTasksOptions, ListConversationMessagesOptions, ListConversationsOptions,
-    ListWorkspaceArtifactsOptions, OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat,
-    StreamChatEventsOptions,
+    ListConversationAsyncTasksOptions, ListConversationMessagesOptions,
+    ListConversationSubagentsOptions, ListConversationsOptions, ListWorkspaceArtifactsOptions,
+    OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat, StreamChatEventsOptions,
+    SyncConversationAsyncTasksOptions, SyncConversationSubagentsOptions,
 };
 use regex::Regex;
 use reqwest::Method;
@@ -64,7 +65,7 @@ macro_rules! domain {
 }
 
 #[tokio::test]
-async fn all_46_real_endpoints() -> Result<(), Box<dyn Error>> {
+async fn all_52_real_endpoints() -> Result<(), Box<dyn Error>> {
     let Some(access_key) = env("OPENAPI_AK") else {
         eprintln!("skipped: live environment variables are required");
         return Ok(());
@@ -106,7 +107,7 @@ async fn all_46_real_endpoints() -> Result<(), Box<dyn Error>> {
     scenario?;
     cleanup_result?;
 
-    assert_eq!(coverage.seen.len(), 46);
+    assert_eq!(coverage.seen.len(), 52);
     assert_eq!(coverage.seen, published_endpoints()?);
     Ok(())
 }
@@ -320,6 +321,15 @@ async fn run_scenario(
             &ListConversationAsyncTasksOptions::default()
         )
     );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/async-tasks/sync",
+        coverage.user.messages().sync_conversation_async_tasks(
+            conversation,
+            &SyncConversationAsyncTasksOptions::default()
+        )
+    );
     domain!(
         coverage,
         Method::GET,
@@ -328,6 +338,51 @@ async fn run_scenario(
             .user
             .messages()
             .get_conversation_async_task(conversation, "missing-async-task")
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/subagents",
+        coverage.user.messages().list_conversation_subagents(
+            conversation,
+            &ListConversationSubagentsOptions::default()
+        )
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/subagents/sync",
+        coverage.user.messages().sync_conversation_subagents(
+            conversation,
+            &SyncConversationSubagentsOptions::default()
+        )
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/subagents/{subagentTaskId}",
+        coverage
+            .user
+            .messages()
+            .get_conversation_subagent(conversation, "missing-subagent")
+    );
+    domain!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/subagents/{subagentTaskId}/result",
+        coverage
+            .user
+            .messages()
+            .get_conversation_subagent_result(conversation, "missing-subagent")
+    );
+    domain!(
+        coverage,
+        Method::DELETE,
+        "/conversations/{conversationId}/subagents/{subagentTaskId}",
+        coverage
+            .user
+            .messages()
+            .cancel_conversation_subagent(conversation, "missing-subagent")
     );
     domain!(
         coverage,
