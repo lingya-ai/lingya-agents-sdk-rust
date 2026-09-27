@@ -33,7 +33,7 @@ jobs:
           gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern hmac-v1.json --output ../lingya-agents-openapi/test-vectors/hmac-v1.json --clobber
           printf 'lingya-ai/lingya-agents-openapi@%s\n' "$CONTRACT_TAG" > CONTRACT_VERSION
       - run: python3 scripts/generate_bound_api.py && cargo test --all-targets
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
           branch: automation/contract-${{ env.CONTRACT_TAG }}
           commit-message: "chore: update contract to ${{ env.CONTRACT_TAG }}"
