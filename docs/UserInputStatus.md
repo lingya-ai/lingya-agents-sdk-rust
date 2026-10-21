@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**pending** | **bool** | 字段 pending / pending field。 | 
+**pending** | **bool** | 字段 pending / pending field。 |
 **question** | Option<**String**> | 字段 question / question field。 | [optional]
 **question_details** | Option<**String**> | 字段 questionDetails / question details field。 | [optional]
 **options** | Option<**Vec<String>**> | 字段 options / options field。 | [optional]

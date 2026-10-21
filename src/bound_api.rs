@@ -103,16 +103,14 @@ pub struct ListConversationsOptions {
     pub current: Option<i32>,
     /// 单页记录数。 / Number of records per page.
     pub size: Option<i32>,
-    /// 排序字段列表。 / Ordered list of sort fields.
-    pub order_by: Option<Vec<String>>,
-    /// 排序方向。 / Sort direction.
-    pub order_direction: Option<SortDirection>,
-    /// 空值排序策略。 / Null ordering strategy.
-    pub order_null_handling: Option<NullOrdering>,
-    /// 标题或正文检索关键字。 / Title or content search keyword.
-    pub keyword: Option<String>,
     /// 状态过滤条件。 / Status filter.
     pub status: Option<String>,
+    /// 标题或正文检索关键字。 / Title or content search keyword.
+    pub keyword: Option<String>,
+    /// 字段 groupFilter / group filter field。
+    pub group_filter: Option<String>,
+    /// groupFilter 为 GROUP 时必填。 / Required when groupFilter is GROUP.
+    pub group_id: Option<i64>,
 }
 
 /// 分页读取 SQL 结果 / Get paged SQL results 的查询参数和请求头。 / Query values and headers for `get_sql_query_result`.
@@ -257,6 +255,24 @@ pub struct GetWorkspaceFilePreviewOptions {
     pub path: String,
 }
 
+/// 增量同步消息 / Sync conversation messages 的查询参数和请求头。 / Query values and headers for `sync_conversation_messages`.
+#[derive(Clone, Debug, Default)]
+pub struct SyncConversationMessagesOptions {
+    /// 通知消息同步游标。 / Notification-message sync cursor.
+    pub after_message_id: Option<String>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+}
+
+/// 查询目标历史 / Get goal history 的查询参数和请求头。 / Query values and headers for `get_goal_history`.
+#[derive(Clone, Debug, Default)]
+pub struct GetGoalHistoryOptions {
+    /// 分页信息 / page metadata。
+    pub page: Option<i32>,
+    /// 单页记录数。 / Number of records per page.
+    pub size: Option<i32>,
+}
+
 /// configuration 分组的 channel 绑定接口。 / Channel-bound configuration operations.
 pub struct ConfigurationApi<'a> {
     client: &'a AgentsUserClient,
@@ -289,6 +305,15 @@ impl<'a> ConfigurationApi<'a> {
         );
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 签发一次性短期渠道令牌 / Create a single-use short-lived channel token
+    ///
+    pub async fn create_open_api_token(&self) -> Result<models::OpenApiToken, ApiError> {
+        let suffix = "/presign".to_owned();
+        self.client
+            .request_model_internal(Method::POST, &suffix, None, &[])
             .await
     }
 }
@@ -405,6 +430,137 @@ impl<'a> ChatApi<'a> {
             .request_status_internal(Method::POST, &suffix, None, &query)
             .await
     }
+
+    /// 读取当前目标 / Get current goal
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn get_goal(&self, conversation_id: &str) -> Result<models::AgentGoalView, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
+            .await
+    }
+
+    /// 编辑目标 / Edit goal
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 编辑目标 / Edit goal 的强类型请求体。 / Typed request body for `edit_goal`.
+    pub async fn edit_goal(
+        &self,
+        conversation_id: &str,
+        input: &models::EditAgentGoalInput,
+    ) -> Result<models::AgentGoal, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::PATCH,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 查询目标历史 / Get goal history
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `page` - 分页信息 / page metadata。
+    /// * `size` - 单页记录数。 / Number of records per page.
+    pub async fn get_goal_history(
+        &self,
+        conversation_id: &str,
+        options: &GetGoalHistoryOptions,
+    ) -> Result<models::AgentGoalHistory, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal/history",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.page {
+            query.push(QueryParameter::new("page", value.to_string()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
+
+    /// 暂停目标 / Pause goal
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 暂停目标 / Pause goal 的强类型请求体。 / Typed request body for `pause_goal`.
+    pub async fn pause_goal(
+        &self,
+        conversation_id: &str,
+        input: &models::AgentGoalRefInput,
+    ) -> Result<models::AgentGoal, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal/pause",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 恢复目标 / Resume goal
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 恢复目标 / Resume goal 的强类型请求体。 / Typed request body for `resume_goal`.
+    pub async fn resume_goal(
+        &self,
+        conversation_id: &str,
+        input: &models::AgentGoalRefInput,
+    ) -> Result<models::AgentGoal, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal/resume",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 清除目标 / Clear goal
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 清除目标 / Clear goal 的强类型请求体。 / Typed request body for `clear_goal`.
+    pub async fn clear_goal(
+        &self,
+        conversation_id: &str,
+        input: &models::AgentGoalRefInput,
+    ) -> Result<models::AgentGoal, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/goal/clear",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::POST,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
 }
 
 /// conversations 分组的 channel 绑定接口。 / Channel-bound conversations operations.
@@ -424,6 +580,19 @@ impl<'a> ConversationsApi<'a> {
         let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
         self.client
             .request_status_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+
+    /// 读取会话摘要 / Get conversation summary
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    pub async fn get_conversation_summary(
+        &self,
+        conversation_id: &str,
+    ) -> Result<models::ConversationSummary, ApiError> {
+        let suffix = format!("/conversations/{}", encode_path_segment(conversation_id));
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
             .await
     }
 
@@ -447,11 +616,10 @@ impl<'a> ConversationsApi<'a> {
     ///
     /// * `current` - 从 0 开始的页码。 / Zero-based page index.
     /// * `size` - 单页记录数。 / Number of records per page.
-    /// * `order_by` - 排序字段列表。 / Ordered list of sort fields.
-    /// * `order_direction` - 排序方向。 / Sort direction.
-    /// * `order_null_handling` - 空值排序策略。 / Null ordering strategy.
-    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
     /// * `status` - 状态过滤条件。 / Status filter.
+    /// * `keyword` - 标题或正文检索关键字。 / Title or content search keyword.
+    /// * `group_filter` - 字段 groupFilter / group filter field。
+    /// * `group_id` - groupFilter 为 GROUP 时必填。 / Required when groupFilter is GROUP.
     pub async fn list_conversations(
         &self,
         options: &ListConversationsOptions,
@@ -464,20 +632,17 @@ impl<'a> ConversationsApi<'a> {
         if let Some(value) = &options.size {
             query.push(QueryParameter::new("size", value.to_string()));
         }
-        for value in options.order_by.as_deref().unwrap_or(&[]) {
-            query.push(QueryParameter::new("orderBy", value));
-        }
-        if let Some(value) = &options.order_direction {
-            query.push(QueryParameter::new("orderDirection", value.as_str()));
-        }
-        if let Some(value) = &options.order_null_handling {
-            query.push(QueryParameter::new("orderNullHandling", value.as_str()));
+        if let Some(value) = &options.status {
+            query.push(QueryParameter::new("status", value.as_str()));
         }
         if let Some(value) = &options.keyword {
             query.push(QueryParameter::new("keyword", value.as_str()));
         }
-        if let Some(value) = &options.status {
-            query.push(QueryParameter::new("status", value.as_str()));
+        if let Some(value) = &options.group_filter {
+            query.push(QueryParameter::new("groupFilter", value.as_str()));
+        }
+        if let Some(value) = &options.group_id {
+            query.push(QueryParameter::new("groupId", value.to_string()));
         }
         self.client
             .request_model_internal(Method::GET, &suffix, None, &query)
@@ -576,13 +741,13 @@ impl<'a> ConversationsApi<'a> {
         &self,
         conversation_id: &str,
         input: &models::ConversationTitleInput,
-    ) -> Result<(), ApiError> {
+    ) -> Result<models::ConversationMetadata, ApiError> {
         let suffix = format!(
             "/conversations/{}/title",
             encode_path_segment(conversation_id)
         );
         self.client
-            .request_status_internal(
+            .request_model_internal(
                 Method::PATCH,
                 &suffix,
                 Some(serde_json::to_string(input)?),
@@ -614,35 +779,25 @@ impl<'a> ConversationsApi<'a> {
             .await
     }
 
-    /// 查询会话分享 / List conversation shares
+    /// 查询会话分组 / List conversation groups
     ///
-    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
-    pub async fn list_conversation_shares(
+    pub async fn list_conversation_groups(
         &self,
-        conversation_id: &str,
-    ) -> Result<models::ConversationShareList, ApiError> {
-        let suffix = format!(
-            "/conversations/{}/shares",
-            encode_path_segment(conversation_id)
-        );
+    ) -> Result<models::ConversationGroupList, ApiError> {
+        let suffix = "/conversation-groups".to_owned();
         self.client
             .request_model_internal(Method::GET, &suffix, None, &[])
             .await
     }
 
-    /// 创建会话分享 / Create a conversation share
+    /// 创建会话分组 / Create conversation group
     ///
-    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
-    /// * `input` - 创建会话分享 / Create a conversation share 的强类型请求体。 / Typed request body for `create_conversation_share`.
-    pub async fn create_conversation_share(
+    /// * `input` - 创建会话分组 / Create conversation group 的强类型请求体。 / Typed request body for `create_conversation_group`.
+    pub async fn create_conversation_group(
         &self,
-        conversation_id: &str,
-        input: &models::ConversationShareInput,
-    ) -> Result<models::ConversationShareCreated, ApiError> {
-        let suffix = format!(
-            "/conversations/{}/shares",
-            encode_path_segment(conversation_id)
-        );
+        input: &models::ConversationGroupNameInput,
+    ) -> Result<models::ConversationGroup, ApiError> {
+        let suffix = "/conversation-groups".to_owned();
         self.client
             .request_model_internal(
                 Method::POST,
@@ -653,22 +808,59 @@ impl<'a> ConversationsApi<'a> {
             .await
     }
 
-    /// 撤销会话分享 / Revoke a conversation share
+    /// 重命名会话分组 / Rename conversation group
     ///
-    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
-    /// * `share_id` - 会话分享记录 ID。 / Conversation-share record ID.
-    pub async fn revoke_conversation_share(
+    /// * `group_id` - 字段 groupId / group id field。
+    /// * `input` - 重命名会话分组 / Rename conversation group 的强类型请求体。 / Typed request body for `rename_conversation_group`.
+    pub async fn rename_conversation_group(
         &self,
-        conversation_id: &str,
-        share_id: i64,
-    ) -> Result<models::ConversationShareRevoked, ApiError> {
-        let suffix = format!(
-            "/conversations/{}/shares/{}",
-            encode_path_segment(conversation_id),
-            encode_path_segment(share_id)
-        );
+        group_id: i64,
+        input: &models::ConversationGroupNameInput,
+    ) -> Result<models::ConversationGroup, ApiError> {
+        let suffix = format!("/conversation-groups/{}", encode_path_segment(group_id));
+        self.client
+            .request_model_internal(
+                Method::PATCH,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
+            .await
+    }
+
+    /// 删除会话分组 / Delete conversation group
+    ///
+    /// * `group_id` - 字段 groupId / group id field。
+    pub async fn delete_conversation_group(
+        &self,
+        group_id: i64,
+    ) -> Result<models::ConversationGroupDeleted, ApiError> {
+        let suffix = format!("/conversation-groups/{}", encode_path_segment(group_id));
         self.client
             .request_model_internal(Method::DELETE, &suffix, None, &[])
+            .await
+    }
+
+    /// 移动会话分组 / Move conversation to group
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `input` - 移动会话分组 / Move conversation to group 的强类型请求体。 / Typed request body for `move_conversation_to_group`.
+    pub async fn move_conversation_to_group(
+        &self,
+        conversation_id: &str,
+        input: &models::UpdateConversationGroupInput,
+    ) -> Result<models::ConversationMetadata, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/group",
+            encode_path_segment(conversation_id)
+        );
+        self.client
+            .request_model_internal(
+                Method::PATCH,
+                &suffix,
+                Some(serde_json::to_string(input)?),
+                &[],
+            )
             .await
     }
 }
@@ -1072,6 +1264,32 @@ impl<'a> MessagesApi<'a> {
             .request_model_internal(Method::DELETE, &suffix, None, &[])
             .await
     }
+
+    /// 增量同步消息 / Sync conversation messages
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `after_message_id` - 通知消息同步游标。 / Notification-message sync cursor.
+    /// * `size` - 单页记录数。 / Number of records per page.
+    pub async fn sync_conversation_messages(
+        &self,
+        conversation_id: &str,
+        options: &SyncConversationMessagesOptions,
+    ) -> Result<models::ConversationMessageSync, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/messages/sync",
+            encode_path_segment(conversation_id)
+        );
+        let mut query = Vec::new();
+        if let Some(value) = &options.after_message_id {
+            query.push(QueryParameter::new("afterMessageId", value.as_str()));
+        }
+        if let Some(value) = &options.size {
+            query.push(QueryParameter::new("size", value.to_string()));
+        }
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &query)
+            .await
+    }
 }
 
 /// events 分组的 channel 绑定接口。 / Channel-bound events operations.
@@ -1204,6 +1422,25 @@ impl<'a> InteractionsApi<'a> {
                 Some(serde_json::to_string(input)?),
                 &[],
             )
+            .await
+    }
+
+    /// 查询消息计划审批状态 / Get message plan status
+    ///
+    /// * `conversation_id` - 会话 ID；必须属于当前外部用户。 / Conversation ID owned by the current external user.
+    /// * `message_id` - 用户消息 ID；必须属于指定会话。 / User-message ID owned by the specified conversation.
+    pub async fn get_message_plan_status(
+        &self,
+        conversation_id: &str,
+        message_id: &str,
+    ) -> Result<models::PlanStatus, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/messages/{}/plan/status",
+            encode_path_segment(conversation_id),
+            encode_path_segment(message_id)
+        );
+        self.client
+            .request_model_internal(Method::GET, &suffix, None, &[])
             .await
     }
 }
@@ -1459,4 +1696,53 @@ impl<'a> WorkspaceApi<'a> {
 
 fn encode_path_segment(value: impl ToString) -> String {
     url::form_urlencoded::byte_serialize(value.to_string().as_bytes()).collect()
+}
+
+impl ChatApi<'_> {
+    /// Subscribe once; a fresh token is acquired for every new connection.
+    pub async fn subscribe_chat_events(
+        &self,
+        conversation_id: &str,
+        input: &models::AiChatStreamInput,
+    ) -> Result<crate::ChatSubscription, ApiError> {
+        let client = self.client.subscription_client();
+        let events = match client.stream_transport() {
+            crate::StreamTransport::Sse => {
+                client
+                    .stream_chat_events_internal(conversation_id, input, None)
+                    .await?
+            }
+            crate::StreamTransport::WebSocket => {
+                client
+                    .websocket_events_internal(conversation_id, input)
+                    .await?
+            }
+        };
+        Ok(crate::ChatSubscription::new(events, client.cancellation()))
+    }
+}
+impl SqlApi<'_> {
+    /// Export bytes together with filename and response headers.
+    pub async fn export_sql_query_result_with_metadata(
+        &self,
+        conversation_id: &str,
+        result_id: &str,
+        options: &ExportSqlQueryResultOptions,
+    ) -> Result<crate::DownloadResponse, ApiError> {
+        let suffix = format!(
+            "/conversations/{}/sql-query-results/{}/export",
+            encode_path_segment(conversation_id),
+            encode_path_segment(result_id)
+        );
+        self.client
+            .download_internal(
+                &suffix,
+                &[QueryParameter::new("format", options.format.as_str())],
+                options
+                    .accept
+                    .as_deref()
+                    .unwrap_or("application/octet-stream"),
+            )
+            .await
+    }
 }

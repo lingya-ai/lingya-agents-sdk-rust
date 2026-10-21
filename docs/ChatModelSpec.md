@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**key_group_id** | **i64** | 字段 keyGroupId / key group id field。 | 
-**model** | **String** | 字段 model / model field。 | 
+**key_group_id** | **i64** | 字段 keyGroupId / key group id field。 |
+**model** | **String** | 字段 model / model field。 |
 **thinking** | Option<**bool**> | 字段 thinking / thinking field。 | [optional]
 **stop_sequences** | Option<**Vec<String>**> | 字段 stopSequences / stop sequences field。 | [optional]
 **temperature** | Option<**f64**> | 字段 temperature / temperature field。 | [optional]

@@ -6,7 +6,7 @@ use serde_json::value::RawValue;
 use crate::client::LingyaError;
 use crate::models;
 
-/// 15 种已知聊天事件，以及保留完整 JSON 的未知事件。
+/// 13 种已知聊天事件，以及保留完整 JSON 的未知事件。
 #[derive(Clone, Debug, PartialEq)]
 pub enum LingyaAiChatBriefEvent {
     /// 用户查询事件。
@@ -25,10 +25,6 @@ pub enum LingyaAiChatBriefEvent {
     Start(models::AiChatStartBriefEvent),
     /// 思考过程事件。
     Think(models::AiChatThinkBriefEvent),
-    /// 模型请求事件。
-    ChatClientRequest(models::AiChatRequestBriefEvent),
-    /// 模型响应事件。
-    ChatClientResponse(models::AiChatResponseBriefEvent),
     /// 消息事件。
     Message(models::AiChatMessageBriefEvent),
     /// 工具执行事件。
@@ -55,8 +51,6 @@ impl LingyaAiChatBriefEvent {
             Self::Error(_) => "error",
             Self::Start(_) => "start",
             Self::Think(_) => "think",
-            Self::ChatClientRequest(_) => "chat-client-request",
-            Self::ChatClientResponse(_) => "chat-client-response",
             Self::Message(_) => "message",
             Self::ToolExecution(_) => "tool-execution",
             Self::ToolExecutionSubAgentCall(_) => "tool-execution-sub-agent-call",
@@ -115,7 +109,7 @@ pub enum LingyaToolExtension {
     Unknown(models::UnknownToolExtension),
 }
 
-/// 15 种已知聊天事件及未知事件后备类型。 / Known chat events plus the unknown fallback.
+/// 13 种已知聊天事件及未知事件后备类型。 / Known chat events plus the unknown fallback.
 pub type AiChatBriefEvent = LingyaAiChatBriefEvent;
 /// 已知工具扩展及未知扩展后备类型。 / Known tool extensions plus the unknown fallback.
 pub type ToolExtension = LingyaToolExtension;
@@ -146,12 +140,6 @@ pub fn decode_ai_chat_brief_event(raw_json: &str) -> Result<LingyaAiChatBriefEve
         "error" => LingyaAiChatBriefEvent::Error(serde_json::from_str(raw_json)?),
         "start" => LingyaAiChatBriefEvent::Start(serde_json::from_str(raw_json)?),
         "think" => LingyaAiChatBriefEvent::Think(serde_json::from_str(raw_json)?),
-        "chat-client-request" => {
-            LingyaAiChatBriefEvent::ChatClientRequest(serde_json::from_str(raw_json)?)
-        }
-        "chat-client-response" => {
-            LingyaAiChatBriefEvent::ChatClientResponse(serde_json::from_str(raw_json)?)
-        }
         "message" => LingyaAiChatBriefEvent::Message(serde_json::from_str(raw_json)?),
         "tool-execution" => LingyaAiChatBriefEvent::ToolExecution(decode_tool_execution(raw_json)?),
         "tool-execution-sub-agent-call" => {

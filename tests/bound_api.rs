@@ -30,10 +30,13 @@ fn every_contract_operation_has_one_bound_method_without_channel_id() {
     let methods: Vec<_> = declaration
         .captures_iter(&source)
         .map(|capture| capture[1].to_owned())
+        .filter(|name| {
+            name != "subscribe_chat_events" && name != "export_sql_query_result_with_metadata"
+        })
         .collect();
 
-    assert_eq!(manifest.len(), 52);
-    assert_eq!(methods.len(), 52);
+    assert_eq!(manifest.len(), 64);
+    assert_eq!(methods.len(), 64);
     for operation in manifest {
         assert!(methods.contains(&camel_to_snake(&operation.operation_id)));
     }

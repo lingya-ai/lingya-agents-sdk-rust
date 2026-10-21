@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**input_tokens** | **i64** | 输入 Token 数 / input token count。 | 
-**output_tokens** | **i64** | 输出 Token 数 / output token count。 | 
+**input_tokens** | **i64** | 输入 Token 数 / input token count。 |
+**output_tokens** | **i64** | 输出 Token 数 / output token count。 |
 **total_tokens** | **i64** | 总 Token 数 / total token count。 | [readonly]
 **input_token_breakdown** | Option<[**models::InputTokenBreakdown**](InputTokenBreakdown.md)> | 字段 inputTokenBreakdown / input token breakdown field。 | [optional]
 **reasoning_tokens** | Option<**i64**> | 字段 reasoningTokens / reasoning tokens field。 | [optional]

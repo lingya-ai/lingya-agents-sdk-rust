@@ -1,6 +1,6 @@
 [package]
 name = "lingya-agents-sdk"
-version = "0.5.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["Lingya AI"]
 description = "Strongly typed Rust SDK for Lingya Agents OpenAPI"
@@ -18,7 +18,7 @@ futures-util = "0.3"
 getrandom = "0.3"
 hex = "0.4"
 hmac = "0.12"
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "stream", "rustls-tls"] }
+reqwest = { version = "0.12.28", default-features = false, features = ["json", "multipart", "stream", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 serde_repr = "0.1"
@@ -26,6 +26,11 @@ serde_with = { version = "3.8", default-features = false, features = ["base64", 
 sha2 = "0.10"
 thiserror = "2"
 url = "2.5"
+
+tokio = { version = "1", features = ["macros", "rt", "time", "sync"] }
+tokio-util = "0.7"
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+percent-encoding = "2"
 
 [dev-dependencies]
 regex = "1"

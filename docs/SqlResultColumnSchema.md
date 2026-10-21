@@ -4,9 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**name** | **String** | 字段 name / name field。 | 
-**r#type** | **String** | 类型判别值 / type discriminator。 | 
-**nullable** | **bool** | 字段 nullable / nullable field。 | 
+**name** | **String** | 字段 name / name field。 |
+**r#type** | **String** | 类型判别值 / type discriminator。 |
+**nullable** | **bool** | 字段 nullable / nullable field。 |
 **precision** | Option<**i32**> | 字段 precision / precision field。 | [optional]
 **scale** | Option<**i32**> | 字段 scale / scale field。 | [optional]
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 - 2026-10-20
+
+- Add scoped RequestOptions, cancellation/deadlines, owned SSE/WebSocket subscriptions, typed transport errors, diagnostics and download metadata.
+- Add identity-bound HMAC/token construction and independent fresh-token callbacks per request; reject token presign, redact provider errors, and disable token retries/redirects.
+- Align with contract v0.1.7: add token issuance, goals, groups, conversation summary, message sync and message plan status.
+- Correct chat modes, pagination, title metadata responses and dynamic message metadata; remove unavailable sharing and internal model events.
+
 ## 0.5.0 - 2026-09-27
 
 - 同步 OpenAPI 契约 v0.1.5，新增异步任务同步及子 Agent 查询、结果和取消接口。

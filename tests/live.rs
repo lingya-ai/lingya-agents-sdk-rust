@@ -6,19 +6,21 @@ use std::path::PathBuf;
 use futures_util::StreamExt;
 use lingya_agents_sdk::models::generate_pre_signed_url_input::Module;
 use lingya_agents_sdk::models::{
-    AiChatEventsBatchInput, AiChatInput, AiChatStreamInput, AiChatSubmission, ChatStreamProbeInput,
-    ConfirmUploadInput, ConversationActivityBatchInput, ConversationReadReceiptInput,
-    ConversationShareInput, ConversationStatusInput, ConversationTitleInput, CreateFileInput,
-    GeneratePreSignedUrlInput, PlanApprovalInput, UserInputAnswerInput,
+    AgentGoalRefInput, AiChatEventsBatchInput, AiChatInput, AiChatStreamInput, AiChatSubmission,
+    ChatStreamProbeInput, ConfirmUploadInput, ConversationActivityBatchInput,
+    ConversationGroupNameInput, ConversationReadReceiptInput, ConversationStatusInput,
+    ConversationTitleInput, CreateFileInput, EditAgentGoalInput, GeneratePreSignedUrlInput,
+    PlanApprovalInput, UpdateConversationGroupInput, UserInputAnswerInput,
 };
 use lingya_agents_sdk::{
     AgentsClient, AgentsUserClient, ApiError, CompactConversationOptions,
     ExportSqlQueryResultOptions, FileExistsByContentMd5Options, GetChatEventsOptions,
-    GetSqlQueryResultOptions, GetUserInputStatusOptions, GetWorkspaceFilePreviewOptions,
-    ListConversationAsyncTasksOptions, ListConversationMessagesOptions,
-    ListConversationSubagentsOptions, ListConversationsOptions, ListWorkspaceArtifactsOptions,
-    OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat, StreamChatEventsOptions,
-    SyncConversationAsyncTasksOptions, SyncConversationSubagentsOptions,
+    GetGoalHistoryOptions, GetSqlQueryResultOptions, GetUserInputStatusOptions,
+    GetWorkspaceFilePreviewOptions, ListConversationAsyncTasksOptions,
+    ListConversationMessagesOptions, ListConversationSubagentsOptions, ListConversationsOptions,
+    ListWorkspaceArtifactsOptions, OpenApiCredentials, ProbeEventStreamOptions, SqlExportFormat,
+    StreamChatEventsOptions, SyncConversationAsyncTasksOptions, SyncConversationMessagesOptions,
+    SyncConversationSubagentsOptions,
 };
 use regex::Regex;
 use reqwest::Method;
@@ -42,7 +44,7 @@ macro_rules! domain {
     ($coverage:expr, $method:expr, $suffix:expr, $future:expr) => {{
         match $future.await {
             Err(ApiError::Http { status, .. })
-                if matches!(status.as_u16(), 400 | 403 | 404 | 409 | 422) =>
+                if matches!(status.as_u16(), 400 | 403 | 404 | 409 | 410 | 422) =>
             {
                 $coverage.record(
                     $method,
@@ -65,7 +67,7 @@ macro_rules! domain {
 }
 
 #[tokio::test]
-async fn all_52_real_endpoints() -> Result<(), Box<dyn Error>> {
+async fn all_real_endpoints() -> Result<(), Box<dyn Error>> {
     let Some(access_key) = env("OPENAPI_AK") else {
         eprintln!("skipped: live environment variables are required");
         return Ok(());
@@ -107,7 +109,7 @@ async fn all_52_real_endpoints() -> Result<(), Box<dyn Error>> {
     scenario?;
     cleanup_result?;
 
-    assert_eq!(coverage.seen.len(), 52);
+    assert_eq!(coverage.seen.len(), 64);
     assert_eq!(coverage.seen, published_endpoints()?);
     Ok(())
 }
@@ -147,6 +149,130 @@ async fn run_scenario(
 
     let conversation = first.conversation_id.as_str();
     let message = first.message_id.as_str();
+    success!(
+        coverage,
+        Method::POST,
+        "/presign",
+        201,
+        coverage.user.configuration().create_open_api_token()
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}",
+        coverage
+            .user
+            .conversations()
+            .get_conversation_summary(conversation)
+    );
+    let group_input = ConversationGroupNameInput::new("SDK contract group".into());
+    let group = success!(
+        coverage,
+        Method::POST,
+        "/conversation-groups",
+        201,
+        coverage
+            .user
+            .conversations()
+            .create_conversation_group(&group_input)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversation-groups",
+        coverage.user.conversations().list_conversation_groups()
+    );
+    success!(
+        coverage,
+        Method::PATCH,
+        "/conversation-groups/{groupId}",
+        coverage.user.conversations().rename_conversation_group(
+            group.id,
+            &ConversationGroupNameInput::new("SDK renamed group".into())
+        )
+    );
+    success!(
+        coverage,
+        Method::PATCH,
+        "/conversations/{conversationId}/group",
+        coverage.user.conversations().move_conversation_to_group(
+            conversation,
+            &UpdateConversationGroupInput::new(Some(group.id))
+        )
+    );
+    success!(
+        coverage,
+        Method::DELETE,
+        "/conversation-groups/{groupId}",
+        coverage
+            .user
+            .conversations()
+            .delete_conversation_group(group.id)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/messages/sync",
+        coverage
+            .user
+            .messages()
+            .sync_conversation_messages(conversation, &SyncConversationMessagesOptions::default())
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/messages/{messageId}/plan/status",
+        coverage
+            .user
+            .interactions()
+            .get_message_plan_status(conversation, message)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/goal",
+        coverage.user.chat().get_goal(conversation)
+    );
+    success!(
+        coverage,
+        Method::GET,
+        "/conversations/{conversationId}/goal/history",
+        coverage
+            .user
+            .chat()
+            .get_goal_history(conversation, &GetGoalHistoryOptions::default())
+    );
+    let missing_goal = AgentGoalRefInput::new("missing-goal".into(), 1);
+    domain!(
+        coverage,
+        Method::PATCH,
+        "/conversations/{conversationId}/goal",
+        coverage.user.chat().edit_goal(
+            conversation,
+            &EditAgentGoalInput::new("missing-goal".into(), 1, "Missing goal".into())
+        )
+    );
+    domain!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}/goal/pause",
+        coverage.user.chat().pause_goal(conversation, &missing_goal)
+    );
+    domain!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}/goal/resume",
+        coverage
+            .user
+            .chat()
+            .resume_goal(conversation, &missing_goal)
+    );
+    domain!(
+        coverage,
+        Method::POST,
+        "/conversations/{conversationId}/goal/clear",
+        coverage.user.chat().clear_goal(conversation, &missing_goal)
+    );
     success!(
         coverage,
         Method::GET,
@@ -392,36 +518,6 @@ async fn run_scenario(
             .user
             .messages()
             .cancel_queued_message(conversation, message)
-    );
-
-    let share_input = ConversationShareInput::new();
-    let share = success!(
-        coverage,
-        Method::POST,
-        "/conversations/{conversationId}/shares",
-        201,
-        coverage
-            .user
-            .conversations()
-            .create_conversation_share(conversation, &share_input)
-    );
-    success!(
-        coverage,
-        Method::GET,
-        "/conversations/{conversationId}/shares",
-        coverage
-            .user
-            .conversations()
-            .list_conversation_shares(conversation)
-    );
-    success!(
-        coverage,
-        Method::DELETE,
-        "/conversations/{conversationId}/shares/{shareId}",
-        coverage
-            .user
-            .conversations()
-            .revoke_conversation_share(conversation, share.share_id)
     );
 
     let approval = PlanApprovalInput::new(conversation.into(), message.into(), false);

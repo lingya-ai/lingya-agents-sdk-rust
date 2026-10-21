@@ -1,18 +1,15 @@
 name: Update contract
-
 on:
   repository_dispatch:
     types: [contract-released]
   workflow_dispatch:
     inputs:
       contract_tag:
-        description: Contract tag such as v0.1.5
+        description: Contract tag such as v0.1.7
         required: true
-
 permissions:
   contents: write
   pull-requests: write
-
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -20,22 +17,42 @@ jobs:
       CONTRACT_TAG: ${{ github.event.client_payload.tag || inputs.contract_tag }}
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+        with:
+          path: lingya-agents-sdk-rust
+      - uses: actions/checkout@v5
+        with:
+          repository: lingya-ai/lingya-agents-openapi
+          ref: ${{ env.CONTRACT_TAG }}
+          path: lingya-agents-openapi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: rustfmt, clippy
-      - name: Download contract artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - run: python -m pip install ruff==0.16.7
+      - run: npm ci
+        working-directory: lingya-agents-openapi
+      - name: Regenerate models, runtime, facades and manifests
+        run: node lingya-agents-openapi/scripts/generate-sdks.mjs --language=rust
+      - name: Verify SDK
+        working-directory: lingya-agents-sdk-rust
         run: |
-          gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern lingya-agents-v1.yaml --output openapi/lingya-agents-v1.yaml --clobber
-          gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern endpoints.json --output openapi/endpoints.json --clobber
-          mkdir -p ../lingya-agents-openapi/test-vectors
-          gh release download "$CONTRACT_TAG" --repo lingya-ai/lingya-agents-openapi --pattern hmac-v1.json --output ../lingya-agents-openapi/test-vectors/hmac-v1.json --clobber
-          printf 'lingya-ai/lingya-agents-openapi@%s\n' "$CONTRACT_TAG" > CONTRACT_VERSION
-      - run: python3 scripts/generate_bound_api.py && cargo test --all-targets
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test --all-targets
+          cargo package --locked
       - uses: peter-evans/create-pull-request@v7
         with:
+          path: lingya-agents-sdk-rust
           branch: automation/contract-${{ env.CONTRACT_TAG }}
-          commit-message: "chore: update contract to ${{ env.CONTRACT_TAG }}"
-          title: "chore: update contract to ${{ env.CONTRACT_TAG }}"
-          body: "Regenerates the channel-bound SDK facade from lingya-agents-openapi `${{ env.CONTRACT_TAG }}` and runs the complete test suite."
+          commit-message: 'chore: update SDK from ${{ env.CONTRACT_TAG }}'
+          title: 'chore: update SDK from ${{ env.CONTRACT_TAG }}'
+          body: 'Regenerates all managed SDK sources and runs SDK checks.'

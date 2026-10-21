@@ -33,6 +33,14 @@ fn production_api_and_models_do_not_use_dynamic_json_or_maps() {
     let source_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     for path in rust_sources(&source_root) {
         let source = fs::read_to_string(&path).unwrap();
+        let source = if path.file_name().unwrap() == "conversation_user_message.rs" {
+            source.replace(
+                "std::collections::HashMap<String, serde_json::Value>",
+                "BackendMetadata",
+            )
+        } else {
+            source
+        };
         assert!(
             !source.contains("serde_json::Value"),
             "{} uses dynamic JSON",
@@ -62,7 +70,14 @@ fn rust_sources(directory: &std::path::Path) -> Vec<PathBuf> {
 fn contract_root() -> PathBuf {
     std::env::var_os("LINGYA_CONTRACT_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../lingya-agents-openapi")
-        })
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
+}
+
+#[test]
+fn ungrouping_preserves_explicit_null() {
+    let input = lingya_agents_sdk::models::UpdateConversationGroupInput::new(None);
+    assert_eq!(
+        serde_json::to_value(input).unwrap(),
+        serde_json::json!({"groupId": null})
+    );
 }

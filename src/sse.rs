@@ -5,39 +5,47 @@
 pub struct SseDecoder {
     pending: Vec<u8>,
     data_lines: Vec<String>,
+    comments: Vec<String>,
+    skip_lf: bool,
 }
 
 impl SseDecoder {
     /// 输入一个任意大小的网络分片并返回其中已完成的事件数据。
     pub fn push(&mut self, chunk: &[u8]) -> Result<Vec<String>, std::str::Utf8Error> {
-        self.pending.extend_from_slice(chunk);
         let mut completed = Vec::new();
-        while let Some(index) = self.pending.iter().position(|byte| *byte == b'\n') {
-            let mut line = self.pending.drain(..=index).collect::<Vec<_>>();
-            line.pop();
-            if line.last() == Some(&b'\r') {
-                line.pop();
+        for &byte in chunk {
+            if self.skip_lf {
+                self.skip_lf = false;
+                if byte == b'\n' {
+                    continue;
+                }
             }
-            self.consume_line(std::str::from_utf8(&line)?, &mut completed);
+            if byte == b'\r' || byte == b'\n' {
+                let line = std::mem::take(&mut self.pending);
+                self.consume_line(std::str::from_utf8(&line)?, &mut completed);
+                self.skip_lf = byte == b'\r';
+            } else {
+                self.pending.push(byte);
+            }
         }
         Ok(completed)
     }
 
-    /// 在正常 EOF 时提交最后一个未以空行结尾的事件。
-    pub fn finish(mut self) -> Result<Vec<String>, std::str::Utf8Error> {
-        let mut completed = Vec::new();
-        if !self.pending.is_empty() {
-            let pending = std::mem::take(&mut self.pending);
-            let line = std::str::from_utf8(&pending)?;
-            self.consume_line(line.trim_end_matches('\r'), &mut completed);
-        }
-        self.dispatch(&mut completed);
-        Ok(completed)
+    /// Discard an incomplete frame at EOF.
+    pub fn finish(self) -> Result<Vec<String>, std::str::Utf8Error> {
+        Ok(Vec::new())
+    }
+
+    /// Drain ready and heartbeat comments since the last push.
+    pub fn take_comments(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.comments)
     }
 
     fn consume_line(&mut self, line: &str, completed: &mut Vec<String>) {
         if line.is_empty() {
             self.dispatch(completed);
+        } else if let Some(comment) = line.strip_prefix(':') {
+            self.comments.push(comment.trim().to_owned());
         } else if let Some(data) = line.strip_prefix("data:") {
             self.data_lines
                 .push(data.strip_prefix(' ').unwrap_or(data).to_owned());

@@ -4,9 +4,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**code** | **String** | 字段 code / code field。 | 
-**message** | **String** | 消息正文 / message text。 | 
-**fields** | [**Vec<models::FieldError>**](FieldError.md) | 字段 fields / fields field。 | 
+**code** | **String** | 字段 code / code field。 |
+**message** | **String** | 消息正文 / message text。 |
+**fields** | [**Vec<models::FieldError>**](FieldError.md) | 字段 fields / fields field。 |
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

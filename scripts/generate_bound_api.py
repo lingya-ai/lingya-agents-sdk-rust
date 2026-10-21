@@ -258,5 +258,22 @@ lines.extend(
     ]
 )
 
+lines.extend([
+    "impl ChatApi<'_> {",
+    "    /// Subscribe once; a fresh token is acquired for every new connection.",
+    "    pub async fn subscribe_chat_events(&self, conversation_id: &str, input: &models::AiChatStreamInput) -> Result<crate::ChatSubscription, ApiError> {",
+    "        let client = self.client.subscription_client();",
+    "        let events = match client.stream_transport() { crate::StreamTransport::Sse => client.stream_chat_events_internal(conversation_id, input, None).await?, crate::StreamTransport::WebSocket => client.websocket_events_internal(conversation_id, input).await? };",
+    "        Ok(crate::ChatSubscription::new(events, client.cancellation()))",
+    "    }",
+    "}",
+    "impl SqlApi<'_> {",
+    "    /// Export bytes together with filename and response headers.",
+    "    pub async fn export_sql_query_result_with_metadata(&self, conversation_id: &str, result_id: &str, options: &ExportSqlQueryResultOptions) -> Result<crate::DownloadResponse, ApiError> {",
+    '        let suffix = format!("/conversations/{}/sql-query-results/{}/export", encode_path_segment(conversation_id), encode_path_segment(result_id));',
+    "        self.client.download_internal(&suffix, &[QueryParameter::new(\"format\", options.format.as_str())], options.accept.as_deref().unwrap_or(\"application/octet-stream\")).await",
+    "    }",
+    "}",
+])
 OUTPUT.write_text("\n".join(lines), encoding="utf-8")
 subprocess.run(["rustfmt", "--edition", "2021", str(OUTPUT)], check=True)
