@@ -4,6 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**file_id** | **i64** | 文件 ID / file ID。 |
 **relative_path** | **String** | 字段 relativePath / relative path field。 |
 **size** | **i64** | 大小（字节）或分页容量 / byte size or page size。 |
 **file_name** | **String** | 文件名 / file name。 |

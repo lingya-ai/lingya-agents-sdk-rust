@@ -38,6 +38,9 @@ fn production_api_and_models_do_not_use_dynamic_json_or_maps() {
                 "std::collections::HashMap<String, serde_json::Value>",
                 "BackendMetadata",
             )
+        } else if path.file_name().unwrap() == "generate_pre_signed_url_output.rs" {
+            // Object-storage form fields are a string-to-string map by protocol design.
+            source.replace("std::collections::HashMap<String, String>", "FormFields")
         } else {
             source
         };

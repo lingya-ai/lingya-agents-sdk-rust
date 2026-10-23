@@ -9,7 +9,6 @@ Name | Type | Description | Notes
 **subagent_type** | **String** | 字段 subagentType / subagent type field。 |
 **status** | **String** | 当前状态 / current status。 |
 **phase** | Option<**String**> | 字段 phase / phase field。 | [optional]
-**progress_percent** | Option<**i32**> | 字段 progressPercent / progress percent field。 | [optional]
 **parent_conversation_id** | **String** | 字段 parentConversationId / parent conversation id field。 |
 **parent_message_id** | **String** | 字段 parentMessageId / parent message id field。 |
 **child_conversation_id** | Option<**String**> | 字段 childConversationId / child conversation id field。 | [optional]

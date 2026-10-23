@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **title** | Option<**String**> | 标题 / title。 | [optional]
 **title_state** | **String** | 字段 titleState / title state field。 |
 **status** | **String** | 当前状态 / current status。 |
-**message_count** | **i64** | 字段 messageCount / message count field。 |
+**message_count** | **i32** | 字段 messageCount / message count field。 |
 **total_tokens** | **i64** | 总 Token 数 / total token count。 |
 **total_input_tokens** | **i64** | 字段 totalInputTokens / total input tokens field。 |
 **total_output_tokens** | **i64** | 字段 totalOutputTokens / total output tokens field。 |

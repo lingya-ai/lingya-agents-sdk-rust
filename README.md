@@ -9,7 +9,7 @@ Installation
 
 ```toml
 [dependencies]
-lingya-agents-sdk = "0.7.0"
+lingya-agents-sdk = "1.0.0"
 futures-util = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
