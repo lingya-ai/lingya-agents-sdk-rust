@@ -20,7 +20,7 @@ jobs:
           repository: lingya-ai/lingya-agents-openapi
           ref: v1.0.0
           path: lingya-agents-openapi
-      - uses: dtolnay/rust-toolchain@1.98.1
+      - uses: dtolnay/rust-toolchain@1.120.0
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
